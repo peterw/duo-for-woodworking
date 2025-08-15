@@ -1,0 +1,528 @@
+import { Header } from '@/components/ui/Header';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { useUserProgressStore, woodworkingSkills } from '@/stores';
+import React, { useState } from 'react';
+import {
+    Dimensions,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const { width } = Dimensions.get('window');
+
+interface SkillNode {
+  id: string;
+  title: string;
+  description: string;
+  level: number;
+  isUnlocked: boolean;
+  isCompleted: boolean;
+  icon: string;
+  prerequisites: string[];
+  microSteps: string[];
+  xpReward: number;
+  category: string;
+  x: number;
+  y: number;
+}
+
+export default function LearnScreen() {
+  const colorScheme = useColorScheme();
+  const { completedSkills, unlockSkill, completeSkill } = useUserProgressStore();
+  const [selectedSkill, setSelectedSkill] = useState<SkillNode | null>(null);
+
+  // Transform skills from store to match the UI requirements
+  const uiSkills: SkillNode[] = woodworkingSkills.map((skill: any, index: number) => {
+    const isUnlocked = skill.prerequisites.length === 0 || 
+      skill.prerequisites.every((prereq: string) => completedSkills.includes(prereq));
+    const isCompleted = completedSkills.includes(skill.id);
+    
+    // Calculate position based on level and category
+    const level = skill.level;
+    const categoryIndex = ['safety', 'tools', 'techniques', 'joinery', 'finishing', 'design'].indexOf(skill.category as any);
+    
+    return {
+      ...skill,
+      isUnlocked,
+      isCompleted,
+      x: (width / 4) + (categoryIndex * (width / 3)),
+      y: 120 + (level * 120),
+    };
+  });
+
+  const renderSkillNode = (skill: SkillNode) => {
+    const isActive = skill.isUnlocked && !skill.isCompleted;
+    const isCompleted = skill.isCompleted;
+    const isLocked = !skill.isUnlocked;
+    
+    return (
+      <TouchableOpacity
+        key={skill.id}
+        style={[
+          styles.skillNode,
+          {
+            left: skill.x - 60,
+            top: skill.y - 40,
+            backgroundColor: isCompleted 
+              ? Colors[colorScheme ?? 'light'].success 
+              : isActive 
+                ? Colors[colorScheme ?? 'light'].tint 
+                : isLocked
+                  ? Colors[colorScheme ?? 'light'].tabIconDefault
+                  : Colors[colorScheme ?? 'light'].border,
+            borderColor: isActive ? Colors[colorScheme ?? 'light'].tint : 'transparent',
+            borderWidth: isActive ? 2 : 0,
+          },
+        ]}
+        onPress={() => {
+          if (isActive) {
+            setSelectedSkill(skill);
+          } else if (isLocked) {
+            // Show prerequisites needed
+            setSelectedSkill(skill);
+          }
+        }}
+        disabled={skill.isCompleted}
+      >
+        <IconSymbol 
+          name={skill.icon as any} 
+          size={24} 
+          color={Colors[colorScheme ?? 'light'].background} 
+        />
+        <Text style={[
+          styles.skillTitle,
+          { color: Colors[colorScheme ?? 'light'].background }
+        ]}>
+          {skill.title}
+        </Text>
+        <Text style={[
+          styles.skillLevel,
+          { color: Colors[colorScheme ?? 'light'].background }
+        ]}>
+          Level {skill.level}
+        </Text>
+        {skill.isCompleted && (
+          <IconSymbol 
+            name="checkmark.circle.fill" 
+            size={20} 
+            color={Colors[colorScheme ?? 'light'].background} 
+            style={styles.completedIcon}
+          />
+        )}
+        {isLocked && (
+          <IconSymbol 
+            name="lock.fill" 
+            size={16} 
+            color={Colors[colorScheme ?? 'light'].background} 
+            style={styles.lockedIcon}
+          />
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderConnections = () => {
+    return uiSkills.map((skill, index) => {
+      if (skill.prerequisites.length === 0) return null;
+      
+      // Find prerequisite skills to draw connections
+      const prereqSkills = skill.prerequisites.map(prereqId => 
+        uiSkills.find(s => s.id === prereqId)
+      ).filter(Boolean) as SkillNode[];
+      
+      return prereqSkills.map((prereq, prereqIndex) => {
+        const startX = prereq.x;
+        const startY = prereq.y + 40;
+        const endX = skill.x;
+        const endY = skill.y - 40;
+        
+        const isUnlocked = skill.isUnlocked;
+        
+        return (
+          <View
+            key={`connection-${skill.id}-${prereq.id}`}
+            style={[
+              styles.connection,
+              {
+                left: Math.min(startX, endX),
+                top: startY,
+                width: Math.abs(endX - startX),
+                height: Math.abs(endY - startY),
+                backgroundColor: isUnlocked 
+                  ? Colors[colorScheme ?? 'light'].tint 
+                  : Colors[colorScheme ?? 'light'].tabIconDefault,
+              },
+            ]}
+          />
+        );
+      });
+    });
+  };
+
+  const renderSkillDetails = () => {
+    if (!selectedSkill) return null;
+    
+    const isUnlocked = selectedSkill.isUnlocked;
+    const isCompleted = selectedSkill.isCompleted;
+    
+    return (
+      <View style={[styles.skillDetailsContainer, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+        <View style={styles.skillDetailsHeader}>
+          <IconSymbol name={selectedSkill.icon as any} size={60} color={Colors[colorScheme ?? 'light'].tint} style={styles.skillDetailsIcon} />
+          <View style={styles.skillDetailsContent}>
+            <Text style={[styles.skillDetailsTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+              {selectedSkill.title}
+            </Text>
+            <Text style={[styles.skillDetailsLevel, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
+              Level {selectedSkill.level}
+            </Text>
+            <Text style={[styles.skillDetailsDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
+              {selectedSkill.description}
+            </Text>
+            <View style={styles.skillDetailsActions}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}
+                onPress={() => {
+                  completeSkill(selectedSkill.id);
+                  setSelectedSkill(null);
+                }}
+              >
+                <Text style={[styles.actionButtonText, { color: 'white' }]}>Start Learning</Text>
+                <IconSymbol name="arrow.right" size={20} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: Colors[colorScheme ?? 'light'].border }]}
+                onPress={() => setSelectedSkill(null)}
+              >
+                <Text style={[styles.actionButtonText, { color: Colors[colorScheme ?? 'light'].text }]}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+        
+        {!isUnlocked && (
+          <View style={styles.prerequisitesSection}>
+            <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+              Prerequisites Required
+            </Text>
+            {selectedSkill.prerequisites.map((prereqId: string) => {
+              const prereqSkill = woodworkingSkills.find((s: any) => s.id === prereqId);
+              const isCompleted = completedSkills.includes(prereqId);
+              return (
+                <View key={prereqId} style={styles.prerequisiteItem}>
+                  <IconSymbol 
+                    name={isCompleted ? "checkmark.circle.fill" : "circle"} 
+                    size={20} 
+                    color={isCompleted ? Colors[colorScheme ?? 'light'].success : Colors[colorScheme ?? 'light'].tabIconDefault} 
+                  />
+                  <Text style={[styles.prerequisiteText, { color: Colors[colorScheme ?? 'light'].text }]}>
+                    {prereqSkill?.title || prereqId}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+        
+        {isUnlocked && !isCompleted && (
+          <View style={styles.microStepsSection}>
+            <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+              What You'll Learn
+            </Text>
+            {selectedSkill.microSteps.map((step, index) => (
+              <View key={index} style={styles.microStepItem}>
+                <Text style={[styles.microStepNumber, { color: Colors[colorScheme ?? 'light'].tint }]}>
+                  {index + 1}
+                </Text>
+                <Text style={[styles.microStepText, { color: Colors[colorScheme ?? 'light'].text }]}>
+                  {step}
+                </Text>
+              </View>
+            ))}
+            
+            <TouchableOpacity
+              style={[styles.startLearningButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}
+              onPress={() => {
+                completeSkill(selectedSkill.id);
+                setSelectedSkill(null);
+              }}
+            >
+              <Text style={styles.startLearningButtonText}>Start Learning</Text>
+              <IconSymbol name="arrow.right" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        {isCompleted && (
+          <View style={styles.completedSection}>
+            <IconSymbol name="checkmark.circle.fill" size={60} color={Colors[colorScheme ?? 'light'].success} />
+            <Text style={[styles.completedText, { color: Colors[colorScheme ?? 'light'].success }]}>
+              Skill Completed!
+            </Text>
+            <Text style={[styles.completedSubtext, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
+              You earned {selectedSkill.xpReward} XP
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <Header 
+          title="Woodworking Skills" 
+          subtitle="Master the craft, one skill at a time"
+          showSafeArea={false}
+        />
+        
+        <View style={styles.skillTree}>
+          {renderConnections()}
+          {uiSkills.map(renderSkillNode)}
+        </View>
+        
+        {renderSkillDetails()}
+        
+        <View style={styles.progressSection}>
+          <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+            Your Progress
+          </Text>
+          <View style={[styles.progressBar, { backgroundColor: Colors[colorScheme ?? 'light'].border }]}>
+            <View 
+              style={[
+                styles.progressFill, 
+                { 
+                  width: `${(completedSkills.length / woodworkingSkills.length) * 100}%`,
+                  backgroundColor: Colors[colorScheme ?? 'light'].tint,
+                }
+              ]} 
+            />
+          </View>
+          <Text style={[styles.progressText, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
+            {completedSkills.length} of {woodworkingSkills.length} skills completed
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  skillTree: {
+    position: 'relative',
+    height: 600,
+    marginHorizontal: 20,
+  },
+  skillNode: {
+    position: 'absolute',
+    width: 120,
+    height: 80,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  skillTitle: {
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 12,
+  },
+  skillLevel: {
+    fontSize: 8,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 2,
+    color: '#666',
+  },
+  completedIcon: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  lockedIcon: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  connection: {
+    position: 'absolute',
+    backgroundColor: '#ccc',
+  },
+  skillDetailsContainer: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  skillDetailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  skillDetailsIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  skillDetailsContent: {
+    flex: 1,
+  },
+  skillDetailsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  skillDetailsLevel: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  skillDetailsDescription: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  skillDetailsActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  prerequisitesSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  prerequisiteItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  prerequisiteText: {
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  microStepsSection: {
+    marginBottom: 24,
+  },
+  microStepItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  microStepNumber: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginRight: 12,
+    minWidth: 20,
+  },
+  microStepText: {
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
+  },
+  startLearningButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  startLearningButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  completedSection: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  completedText: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  completedSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  progressSection: {
+    marginHorizontal: 20,
+    marginTop: 30,
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: '#f8f9fa',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  progressBar: {
+    height: 12,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  progressText: {
+    fontSize: 16,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+});

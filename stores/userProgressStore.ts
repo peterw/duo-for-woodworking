@@ -1,0 +1,504 @@
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { zuStandStorage } from './mmkvStorage';
+
+
+interface Skill {
+  id: string;
+  title: string;
+  description: string;
+  level: number;
+  isUnlocked: boolean;
+  isCompleted: boolean;
+  icon: string;
+  prerequisites: string[];
+  microSteps: string[];
+  xpReward: number;
+  category: 'safety' | 'tools' | 'techniques' | 'joinery' | 'finishing' | 'design';
+}
+
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  estimatedTime: string;
+  materials: string[];
+  tools: string[];
+  skills: string[];
+  lessonSlices: LessonSlice[];
+  image: string;
+  category: string;
+}
+
+interface LessonSlice {
+  id: string;
+  title: string;
+  description: string;
+  duration: string;
+  type: 'cutting' | 'assembly' | 'finishing' | 'safety' | 'planning';
+  steps: string[];
+  successCriteria: string[];
+  photoCheckRequired: boolean;
+}
+
+interface UserProgress {
+  currentStreak: number;
+  longestStreak: number;
+  totalXP: number;
+  level: number;
+  totalProjects: number;
+  skillsCompleted: number;
+  dailyGoals: {
+    practice: boolean;
+    skill: boolean;
+    project: boolean;
+  };
+  completedSkills: string[];
+  completedProjects: string[];
+  lastLoginDate: string;
+}
+
+interface UserProgressStore extends UserProgress {
+  // Actions
+  checkDailyLogin: () => void;
+  completeDailyGoal: (goalId: keyof UserProgress['dailyGoals']) => void;
+  unlockSkill: (skillId: string) => void;
+  completeSkill: (skillId: string) => void;
+  completeProject: (projectId: string) => void;
+  addXP: (amount: number) => void;
+  resetProgress: () => void;
+}
+
+// Enhanced woodworking skills based on TedsWoodworking approach
+const woodworkingSkills: Skill[] = [
+  {
+    id: 'safety-basics',
+    title: 'Safety Fundamentals',
+    description: 'Essential safety practices for woodworking',
+    level: 1,
+    isUnlocked: true,
+    isCompleted: false,
+    icon: 'shield.fill',
+    prerequisites: [],
+    microSteps: [
+      'PPE requirements and usage',
+      'Workspace safety setup',
+      'Tool safety basics',
+      'Emergency procedures',
+      'Dust management'
+    ],
+    xpReward: 100,
+    category: 'safety'
+  },
+  {
+    id: 'measuring-marking',
+    title: 'Measuring & Marking',
+    description: 'Precision measuring and layout techniques',
+    level: 1,
+    isUnlocked: true,
+    isCompleted: false,
+    icon: 'ruler.fill',
+    prerequisites: ['safety-basics'],
+    microSteps: [
+      'Tape measure reading',
+      'Square usage and checking',
+      'Marking tools and techniques',
+      'Layout planning',
+      'Cutting line accuracy'
+    ],
+    xpReward: 150,
+    category: 'techniques'
+  },
+  {
+    id: 'hand-sawing',
+    title: 'Hand Sawing',
+    description: 'Master basic hand saw techniques',
+    level: 1,
+    isUnlocked: false,
+    isCompleted: false,
+    icon: 'scissors',
+    prerequisites: ['safety-basics', 'measuring-marking'],
+    microSteps: [
+      'Saw selection and setup',
+      'Proper grip and stance',
+      'Cutting straight lines',
+      'Cross-cutting techniques',
+      'Rip-cutting techniques'
+    ],
+    xpReward: 200,
+    category: 'techniques'
+  },
+  {
+    id: 'chiseling',
+    title: 'Chiseling Basics',
+    description: 'Learn chisel safety and techniques',
+    level: 2,
+    isUnlocked: false,
+    isCompleted: false,
+    icon: 'hand.raised.fill',
+    prerequisites: ['safety-basics', 'measuring-marking'],
+    microSteps: [
+      'Chisel types and selection',
+      'Sharpening and maintenance',
+      'Safe chiseling techniques',
+      'Mortise cutting',
+      'Clean-up techniques'
+    ],
+    xpReward: 250,
+    category: 'techniques'
+  },
+  {
+    id: 'basic-joinery',
+    title: 'Basic Joinery',
+    description: 'Simple wood joining methods',
+    level: 2,
+    isUnlocked: false,
+    isCompleted: false,
+    icon: 'link',
+    prerequisites: ['hand-sawing', 'chiseling'],
+    microSteps: [
+      'Butt joint basics',
+      'Lap joint techniques',
+      'Simple dado joints',
+      'Glue application',
+      'Clamping strategies'
+    ],
+    xpReward: 300,
+    category: 'joinery'
+  },
+  {
+    id: 'sanding-finishing',
+    title: 'Sanding & Finishing',
+    description: 'Surface preparation and finishing',
+    level: 2,
+    isUnlocked: false,
+    isCompleted: false,
+    icon: 'hand.raised.fill',
+    prerequisites: ['basic-joinery'],
+    microSteps: [
+      'Sandpaper selection',
+      'Sanding techniques',
+      'Surface preparation',
+      'Oil finishes',
+      'Protective coatings'
+    ],
+    xpReward: 250,
+    category: 'finishing'
+  },
+  {
+    id: 'power-tools-intro',
+    title: 'Power Tools Introduction',
+    description: 'Safe power tool operation',
+    level: 3,
+    isUnlocked: false,
+    isCompleted: false,
+    icon: 'bolt.fill',
+    prerequisites: ['safety-basics', 'measuring-marking'],
+    microSteps: [
+      'Drill operation',
+      'Circular saw basics',
+      'Router safety',
+      'Jigsaw techniques',
+      'Power tool maintenance'
+    ],
+    xpReward: 400,
+    category: 'tools'
+  },
+  {
+    id: 'advanced-joinery',
+    title: 'Advanced Joinery',
+    description: 'Complex wood joining techniques',
+    level: 3,
+    isUnlocked: false,
+    isCompleted: false,
+    icon: 'link.badge.plus',
+    prerequisites: ['basic-joinery', 'power-tools-intro'],
+    microSteps: [
+      'Dovetail joints',
+      'Mortise and tenon',
+      'Finger joints',
+      'Complex assemblies',
+      'Joint reinforcement'
+    ],
+    xpReward: 500,
+    category: 'joinery'
+  }
+];
+
+// Sample projects with lesson slices
+const woodworkingProjects: Project[] = [
+  {
+    id: 'cutting-board',
+    title: 'Simple Cutting Board',
+    description: 'A beautiful and functional cutting board perfect for beginners',
+    difficulty: 'Beginner',
+    estimatedTime: '2-3 hours',
+    materials: ['Hardwood (maple, walnut)', 'Food-safe oil', 'Sandpaper'],
+    tools: ['Hand saw', 'Chisel', 'Sandpaper', 'Clamps'],
+    skills: ['safety-basics', 'measuring-marking', 'hand-sawing', 'sanding-finishing'],
+    category: 'kitchen',
+    image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=400&h=300&fit=crop',
+    lessonSlices: [
+      {
+        id: 'cb-planning',
+        title: 'Planning & Design',
+        description: 'Plan your cutting board dimensions and design',
+        duration: '15 min',
+        type: 'planning',
+        steps: [
+          'Choose wood species',
+          'Determine dimensions',
+          'Sketch design',
+          'Calculate materials needed'
+        ],
+        successCriteria: ['Design sketched', 'Materials calculated', 'Dimensions finalized'],
+        photoCheckRequired: false
+      },
+      {
+        id: 'cb-cutting',
+        title: 'Cutting & Shaping',
+        description: 'Cut wood to size and shape the board',
+        duration: '45 min',
+        type: 'cutting',
+        steps: [
+          'Mark cutting lines',
+          'Cut to rough size',
+          'Shape edges',
+          'Check dimensions'
+        ],
+        successCriteria: ['Board cut to size', 'Edges shaped', 'Dimensions accurate'],
+        photoCheckRequired: true
+      },
+      {
+        id: 'cb-sanding',
+        title: 'Sanding & Finishing',
+        description: 'Sand surfaces and apply food-safe finish',
+        duration: '30 min',
+        type: 'finishing',
+        steps: [
+          'Start with coarse sandpaper',
+          'Progress to fine grit',
+          'Apply food-safe oil',
+          'Let dry completely'
+        ],
+        successCriteria: ['Surfaces smooth', 'Oil applied evenly', 'No rough spots'],
+        photoCheckRequired: true
+      }
+    ]
+  },
+  {
+    id: 'birdhouse',
+    title: 'Classic Birdhouse',
+    description: 'Attract birds to your garden with this charming birdhouse',
+    difficulty: 'Beginner',
+    estimatedTime: '3-4 hours',
+    materials: ['Cedar or pine', 'Wood glue', 'Nails', 'Paint'],
+    tools: ['Hand saw', 'Hammer', 'Drill', 'Sandpaper'],
+    skills: ['safety-basics', 'measuring-marking', 'hand-sawing', 'basic-joinery'],
+    category: 'outdoor',
+    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop',
+    lessonSlices: [
+      {
+        id: 'bh-design',
+        title: 'Design & Planning',
+        description: 'Plan your birdhouse design and cut list',
+        duration: '20 min',
+        type: 'planning',
+        steps: [
+          'Choose birdhouse style',
+          'Create cut list',
+          'Mark wood pieces',
+          'Plan assembly order'
+        ],
+        successCriteria: ['Design chosen', 'Cut list complete', 'Assembly planned'],
+        photoCheckRequired: false
+      },
+      {
+        id: 'bh-cutting',
+        title: 'Cutting Pieces',
+        description: 'Cut all wood pieces to size',
+        duration: '60 min',
+        type: 'cutting',
+        steps: [
+          'Cut front and back panels',
+          'Cut side panels',
+          'Cut roof pieces',
+          'Cut entrance hole'
+        ],
+        successCriteria: ['All pieces cut', 'Dimensions accurate', 'Holes drilled'],
+        photoCheckRequired: true
+      },
+      {
+        id: 'bh-assembly',
+        title: 'Assembly',
+        description: 'Assemble the birdhouse using glue and nails',
+        duration: '45 min',
+        type: 'assembly',
+        steps: [
+          'Glue side panels',
+          'Attach front and back',
+          'Install roof',
+          'Add mounting bracket'
+        ],
+        successCriteria: ['Structure assembled', 'Joints secure', 'Roof attached'],
+        photoCheckRequired: true
+      }
+    ]
+  }
+];
+
+export const useUserProgressStore = create<UserProgressStore>()(
+  persist(
+    (set, get) => ({
+      // Initial state
+      currentStreak: 0,
+      longestStreak: 0,
+      totalXP: 0,
+      level: 1,
+      totalProjects: 0,
+      skillsCompleted: 0,
+      dailyGoals: {
+        practice: false,
+        skill: false,
+        project: false,
+      },
+      completedSkills: [],
+      completedProjects: [],
+      lastLoginDate: '',
+
+      // Actions
+      checkDailyLogin: () => {
+        const today = new Date().toDateString();
+        const { lastLoginDate, currentStreak, longestStreak } = get();
+        
+        if (lastLoginDate !== today) {
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const isConsecutive = lastLoginDate === yesterday.toDateString();
+          
+          if (isConsecutive) {
+            const newStreak = currentStreak + 1;
+            set({
+              currentStreak: newStreak,
+              longestStreak: Math.max(newStreak, longestStreak),
+              lastLoginDate: today,
+              dailyGoals: {
+                practice: false,
+                skill: false,
+                project: false,
+              }
+            });
+          } else {
+            set({
+              currentStreak: 1,
+              lastLoginDate: today,
+              dailyGoals: {
+                practice: false,
+                skill: false,
+                project: false,
+              }
+            });
+          }
+        }
+      },
+
+      completeDailyGoal: (goalId) => {
+        const { dailyGoals, totalXP } = get();
+        const xpReward = 25;
+        
+        set({
+          dailyGoals: {
+            ...dailyGoals,
+            [goalId]: true,
+          },
+          totalXP: totalXP + xpReward,
+        });
+        
+        // Check if level should increase
+        const newTotalXP = totalXP + xpReward;
+        const newLevel = Math.floor(newTotalXP / 500) + 1;
+        
+        if (newLevel > get().level) {
+          set({ level: newLevel });
+        }
+      },
+
+      unlockSkill: (skillId) => {
+        const { completedSkills } = get();
+        if (!completedSkills.includes(skillId)) {
+          set({
+            completedSkills: [...completedSkills, skillId],
+          });
+        }
+      },
+
+      completeSkill: (skillId) => {
+        const skill = woodworkingSkills.find(s => s.id === skillId);
+        if (skill) {
+          const { totalXP, skillsCompleted, completedSkills } = get();
+          const newTotalXP = totalXP + skill.xpReward;
+          const newLevel = Math.floor(newTotalXP / 500) + 1;
+          
+          set({
+            totalXP: newTotalXP,
+            skillsCompleted: skillsCompleted + 1,
+            level: newLevel,
+            completedSkills: [...completedSkills, skillId],
+          });
+        }
+      },
+
+      completeProject: (projectId) => {
+        const { totalProjects, totalXP } = get();
+        const projectXP = 200;
+        const newTotalXP = totalXP + projectXP;
+        const newLevel = Math.floor(newTotalXP / 500) + 1;
+        
+        set({
+          totalProjects: totalProjects + 1,
+          totalXP: newTotalXP,
+          level: newLevel,
+        });
+      },
+
+      addXP: (amount) => {
+        const { totalXP } = get();
+        const newTotalXP = totalXP + amount;
+        const newLevel = Math.floor(newTotalXP / 500) + 1;
+        
+        set({
+          totalXP: newTotalXP,
+          level: newLevel,
+        });
+      },
+
+      resetProgress: () => {
+        set({
+          currentStreak: 0,
+          longestStreak: 0,
+          totalXP: 0,
+          level: 1,
+          totalProjects: 0,
+          skillsCompleted: 0,
+          dailyGoals: {
+            practice: false,
+            skill: false,
+            project: false,
+          },
+          completedSkills: [],
+          completedProjects: [],
+          lastLoginDate: '',
+        });
+      },
+    }),
+    {
+      name: 'user-progress-storage',
+      storage: createJSONStorage(() => zuStandStorage),
+    }
+  )
+);
+
+// Export the skills and projects for use in components
+export { woodworkingProjects, woodworkingSkills };
+
