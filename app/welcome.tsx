@@ -1,12 +1,16 @@
 import GeneralStatusBarColor from '@/components/GeneralStatusBarColor';
 import { Button } from '@/components/ui/Button';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAuthStore } from '@/stores';
+import { RPH, RPW } from '@/utils/utils';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
+  Animated,
   Dimensions,
+  Image,
   StyleSheet,
   Text,
   View
@@ -18,6 +22,26 @@ const { width, height } = Dimensions.get('window');
 export default function WelcomeScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
+  const { isAuthenticated, user } = useAuthStore();
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // If user is already authenticated, redirect to main app
+    if (isAuthenticated && user) {
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, user, router]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Animate the rotation when screen is focused
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }).start();
+    }, [rotateAnim])
+  );
 
   const handleGetStarted = () => {
     router.push('/onboarding');
@@ -37,23 +61,23 @@ export default function WelcomeScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
-      
+
       {/* Wood texture overlay */}
       <View style={styles.woodTexture} />
-      
+
       {/* Content */}
       <View style={styles.content}>
         {/* Logo and title section */}
-        <View style={styles.headerSection}>
+        {/* <View style={styles.headerSection}>
           <View style={styles.logoContainer}>
             <IconSymbol name="hammer.fill" size={60} color="white" />
           </View>
           <Text style={styles.title}>Wood Craft</Text>
           <Text style={styles.subtitle}>Master the art of woodworking</Text>
-        </View>
+        </View> */}
 
         {/* Features section */}
-        <View style={styles.featuresSection}>
+        {/* <View style={styles.featuresSection}>
           <View style={styles.featureItem}>
             <IconSymbol name="star.fill" size={24} color="white" />
             <Text style={styles.featureText}>Learn step by step</Text>
@@ -66,35 +90,66 @@ export default function WelcomeScreen() {
             <IconSymbol name="trophy.fill" size={24} color="white" />
             <Text style={styles.featureText}>Earn achievements</Text>
           </View>
-        </View>
+        </View> */}
 
         {/* Action buttons */}
-        <View style={styles.actionSection}>
-          <Button
-            title="Get Started"
-            onPress={handleGetStarted}
-            variant="primary"
-            size="large"
-            icon="arrow.right"
-            style={[styles.primaryButton, { backgroundColor: 'white' }]}
-            textStyle={{ color: '#8B4513' }}
-          />
-
-          <Button
-            title="I already have an account"
-            onPress={handleLogin}
-            variant="ghost"
-            size="medium"
-            style={styles.secondaryButton}
-            textStyle={{ color: '#FFFFFF' }}
-          />
-        </View>
 
         {/* Footer */}
-        <View style={styles.footer}>
+        <View style={{ justifyContent: 'space-between', flex: 1 }}>
+       
+          {/* Header section with brand and title */}
+          <View style={styles.headerSection}>
+            <View style={styles.brandContainer}>
+              <Animated.Text 
+                style={[
+                  styles.brandText,
+                  {
+                    transform: [{
+                      rotate: rotateAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0deg', '270deg']
+                      })
+                    }]
+                  }
+                ]}
+              >
+                Learn Craft
+              </Animated.Text>
+              <View style={styles.verticalSeparator} />
+              <View style={styles.titleContainer}>
+                <Text style={styles.mainTitle}>Wood Craft</Text>
+                <Text style={styles.mainTitle}>in your</Text>
+                <Text style={styles.mainTitle}>style</Text>
+              </View>
+            </View>
+          </View>
+
+          <Image resizeMode='contain' style={{ height: RPH(60), width: RPW(100) }} source={require('../assets/images/chairWithLamp.png')} />
+          <View style={styles.actionSection}>
+            <Button
+              title="Get Started"
+              onPress={handleGetStarted}
+              variant="primary"
+              size="large"
+              icon="arrow.right"
+              style={styles.primaryButton}
+              textStyle={{ color: '#8B4513' }}
+            />
+
+            <Button
+              title="I already have an account"
+              onPress={handleLogin}
+              variant="ghost"
+              size="medium"
+              style={styles.secondaryButton}
+              textStyle={{ color: '#FFFFFF' }}
+            />
+          </View>
+          {/* <View style={styles.footer}>
           <Text style={styles.footerText}>
             By continuing, you agree to our Terms & Privacy Policy
           </Text>
+        </View> */}
         </View>
       </View>
     </SafeAreaView>
@@ -128,8 +183,12 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   headerSection: {
+    width: '100%',
     alignItems: 'center',
-    marginTop: 40,
+    // marginTop: 40,
+    // position: 'absolute',
+    // left: 200
+    top: -20
   },
   logoContainer: {
     width: 120,
@@ -178,6 +237,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     minWidth: 200,
+    backgroundColor: 'white',
   },
   secondaryButton: {
     minWidth: 200,
@@ -190,5 +250,47 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.6)',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  brandContainer: {
+    flexDirection: 'row',
+  },
+  brandText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginRight: 15,
+    marginTop: 10,
+    // width: 20,
+    textAlign: 'center',
+    letterSpacing: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.7,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  verticalSeparator: {
+    width: 1,
+    height: '100%',
+    backgroundColor: '#fff',
+    marginHorizontal: 15,
+    marginTop: 5,
+    left: -110
+  },
+  titleContainer: {
+    left: -106,
+  },
+  mainTitle: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: 'white',
+    textAlign: 'left',
+    marginBottom: 2,
+    letterSpacing: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.7,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });

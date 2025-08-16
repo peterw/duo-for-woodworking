@@ -2,7 +2,7 @@ import GeneralStatusBarColor from '@/components/GeneralStatusBarColor';
 import { Button } from '@/components/ui/Button';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useAppStore, useOnboardingStore } from '@/stores';
+import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores';
 import { RPH, RPW } from '@/utils/utils';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -127,6 +127,14 @@ export default function OnboardingScreen() {
   const colorScheme = useColorScheme();
   const { setOnboardingCompleted } = useAppStore();
   const { setOnboardingData } = useOnboardingStore();
+  const { isAuthenticated, user } = useAuthStore();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, user, router]);
   const [currentStep, setCurrentStep] = useState(0);
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
@@ -341,17 +349,7 @@ export default function OnboardingScreen() {
       ]}
     >
       <View style={styles.welcomeContent}>
-        {/* <Animated.View 
-          style={[
-            styles.iconContainer,
-            {
-              opacity: titleAnim,
-              transform: [{ scale: titleAnim }]
-            }
-          ]}
-        >
-          <IconSymbol name="hammer.fill" size={80} color="#FFFFFF" />
-        </Animated.View> */}
+
         <Animated.Text 
           style={[
             styles.welcomeTitle,
@@ -1278,6 +1276,6 @@ const styles = StyleSheet.create({
   },
   welcomeImage: {
     width: RPW(100),
-    height: RPH(150),
+    height: RPH(75),
   },
 });

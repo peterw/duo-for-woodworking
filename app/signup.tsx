@@ -6,7 +6,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Dimensions,
@@ -45,7 +45,7 @@ export default function SignupScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const { signup } = useAuthStore();
+  const { signup, error, setError } = useAuthStore();
   const { setOnboardingCompleted } = useAppStore();
   const { getOnboardingData } = useOnboardingStore();
 
@@ -65,31 +65,41 @@ export default function SignupScreen() {
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
+    // Clear auth error when user starts typing
+    if (error) {
+      setError(null);
+    }
   };
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = 'Email address is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
+      newErrors.email = 'Please enter a valid email address (e.g., yourname@example.com)';
     }
 
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
+      newErrors.password = 'Password must be at least 8 characters long';
+    } else if (!/(?=.*[a-z])/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one lowercase letter';
+    } else if (!/(?=.*[A-Z])/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one uppercase letter';
+    } else if (!/(?=.*\d)/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one number';
     }
 
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your password';
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = 'Passwords do not match. Please try again';
     }
 
     if (!formData.experience) {
-      newErrors.experience = 'Please select your experience level';
+      newErrors.experience = 'Please select your experience level to personalize your learning';
     }
 
     setErrors(newErrors);
@@ -103,6 +113,7 @@ export default function SignupScreen() {
 
     setIsLoading(true);
     try {
+      setError(null);
       const onboardingData = getOnboardingData();
       if (!onboardingData?.fullName || !onboardingData?.username) {
         Alert.alert('Error', 'Onboarding data is missing. Please complete onboarding first.');
@@ -114,20 +125,36 @@ export default function SignupScreen() {
         username: onboardingData.username,
         email: formData.email.trim().toLowerCase(),
         experience: formData.experience as 'beginner' | 'intermediate' | 'advanced',
-      });
+        timeCommitment: onboardingData.timeCommitment,
+        motivation: onboardingData.motivation,
+        goal: onboardingData.goal,
+      }, formData.password);
 
       if (success) {
         setOnboardingCompleted();
-        router.replace('/(tabs)');
-      } else {
-        Alert.alert('Signup Failed', 'Please try again with different credentials.');
+        Alert.alert(
+          'Account Created Successfully!',
+          'Welcome to Wood Craft! Your account has been created and you\'re now signed in.',
+          [{ text: 'Get Started', onPress: () => router.replace('/(tabs)') }]
+        );
       }
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      console.error('Signup error:', error);
+      // Error is already handled by the auth store
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Get error from auth store
+  const { error: authError } = useAuthStore();
+  
+  // Display auth error if exists
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+    }
+  }, [authError]);
 
   const handleBackToLogin = () => {
     router.back();
@@ -174,11 +201,11 @@ export default function SignupScreen() {
               label="Password"
               value={formData.password}
               onChangeText={(value) => handleInputChange('password', value)}
-              placeholder="Create a password"
+              placeholder="Create a strong password"
               error={errors.password}
               leftIcon="lock.fill"
               secureTextEntry
-              helperText="Must be at least 8 characters"
+              helperText="Use at least 8 characters with uppercase, lowercase, and numbers"
               size="medium"
             />
 
@@ -202,9 +229,16 @@ export default function SignupScreen() {
               onValueChange={(value) => handleInputChange('experience', value)}
               placeholder="Select your experience level"
               error={errors.experience}
-              helperText="This helps us personalize your learning experience"
+              helperText="Don't worry - you can always change this later in your profile"
               size="medium"
             />
+
+            {/* Error Display */}
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
           </View>
 
           {/* Action Buttons */}
@@ -296,5 +330,19 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontWeight: '600',
+  },
+  errorContainer: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });

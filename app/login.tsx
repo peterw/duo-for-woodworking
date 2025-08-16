@@ -5,16 +5,16 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAppStore, useAuthStore } from '@/stores';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -22,7 +22,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, error, setError } = useAuthStore();
   const { setOnboardingCompleted } = useAppStore();
   
   const [formData, setFormData] = useState({
@@ -38,15 +38,19 @@ export default function LoginScreen() {
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
+    // Clear auth error when user starts typing
+    if (error) {
+      setError(null);
+    }
   };
 
   const validateForm = (): boolean => {
     const newErrors: { email?: string; password?: string } = {};
 
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = 'Email address is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
+      newErrors.email = 'Please enter a valid email address';
     }
 
     if (!formData.password.trim()) {
@@ -61,25 +65,58 @@ export default function LoginScreen() {
     if (!validateForm()) return;
 
     try {
+      setError(null);
       const success = await login(formData.email, formData.password);
       
       if (success) {
         setOnboardingCompleted();
-        router.replace('/(tabs)');
-      } else {
-        Alert.alert('Login Failed', 'Invalid credentials. Please try again.');
+        Alert.alert(
+          'Welcome Back!',
+          'You\'ve successfully signed in to Wood Craft.',
+          [{ text: 'Continue', onPress: () => router.replace('/(tabs)') }]
+        );
       }
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      console.error('Login error:', error);
+      // Error is already handled by the auth store
     }
   };
+
+  // Get error from auth store
+  const { error: authError } = useAuthStore();
+  
+  // Display auth error if exists
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+    }
+  }, [authError]);
 
   const handleSignup = () => {
     router.push('/signup');
   };
 
-  const handleForgotPassword = () => {
-    Alert.alert('Forgot Password', 'Password reset functionality would be implemented here.');
+  const handleForgotPassword = async () => {
+    if (!formData.email.trim()) {
+      Alert.alert('Error', 'Please enter your email address first.');
+      return;
+    }
+
+    try {
+      const { resetPassword } = useAuthStore.getState();
+      const success = await resetPassword(formData.email.trim());
+      
+      if (success) {
+        Alert.alert(
+          'Password Reset Email Sent',
+          'Check your email for a link to reset your password. If you don\'t see it, check your spam folder.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Password reset error:', error);
+      // Error is already handled by the auth store
+    }
   };
 
   const handleBackToWelcome = () => {
@@ -143,6 +180,13 @@ export default function LoginScreen() {
                 Forgot Password?
               </Text>
             </TouchableOpacity>
+
+            {/* Error Display */}
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
           </View>
 
           {/* Action Buttons */}
@@ -165,12 +209,7 @@ export default function LoginScreen() {
             />
           </View>
 
-          {/* Demo credentials hint */}
-          <View style={styles.demoHint}>
-            <Text style={[styles.demoHintText, { color: colors.tabIconDefault }]}>
-              💡 Demo: Use any email and password to sign in
-            </Text>
-          </View>
+
 
           {/* Signup link */}
           <View style={styles.signupSection}>
@@ -258,16 +297,6 @@ const styles = StyleSheet.create({
   secondaryButton: {
     marginTop: 8,
   },
-  demoHint: {
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  demoHintText: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
   signupSection: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -279,5 +308,19 @@ const styles = StyleSheet.create({
   signupLink: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  errorContainer: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });

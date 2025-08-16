@@ -1,6 +1,7 @@
 import { Header } from '@/components/ui/Header';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { getAIResponse, WoodworkingResponse } from '@/services/aiCoachService';
+import { useAuthStore } from '@/stores';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -33,7 +34,8 @@ export default function CoachScreen() {
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPrompts, setShowPrompts] = useState(true);
-  const [userId] = useState('demo-user-123'); // In real app, get from auth store
+  const { user } = useAuthStore();
+  const userId = user?.uid || 'demo-user-123';
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 

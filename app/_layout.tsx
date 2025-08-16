@@ -3,12 +3,13 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AuthProvider } from '@/components/AuthProvider';
 import { useAuthStore } from '@/stores';
 
 // Keep the splash screen visible while we fetch resources
@@ -16,7 +17,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, checkAuthStatus } = useAuthStore();
   const [showSplash, setShowSplash] = useState(true);
   const [fontsLoaded] = useFonts({
     'SpaceMono': require('../assets/fonts/SpaceMono-Regular.ttf'),
@@ -24,70 +25,89 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded) {
+      // Initialize Firebase auth
+      checkAuthStatus();
+
       // Hide the native splash screen
       SplashScreen.hideAsync();
-      
+
       // Show our custom splash for a bit longer
+      if (isAuthenticated) {
+        router.push('/(tabs)');
+      } else {
+        
+        router.push('/welcome');
+      }
       const timer = setTimeout(() => {
+      
         setShowSplash(false);
       }, 2500); // Show for 2.5 seconds
 
       return () => clearTimeout(timer);
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, checkAuthStatus]);
 
-  if (!fontsLoaded || showSplash) {
-    return <CustomSplashScreen />;
+  if (!fontsLoaded) {
+    return
   }
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen
-            name="welcome"
-            options={{
-              headerShown: false,
-              gestureEnabled: false,
-            }}
-          />
-          <Stack.Screen
-            name="onboarding"
-            options={{
-              headerShown: false,
-              gestureEnabled: false,
-            }}
-          />
-          <Stack.Screen
-            name="signup"
-            options={{
-              headerShown: false,
-              gestureEnabled: false,
-            }}
-          />
-          <Stack.Screen
-            name="login"
-            options={{
-              headerShown: false,
-              gestureEnabled: false,
-            }}
-          />
-          <Stack.Screen
-            name="(tabs)"
-            options={{
-              headerShown: false,
-              gestureEnabled: false,
-            }}
-          />
-          <Stack.Screen
-            name="+not-found"
-            options={{
-              title: 'Oops!',
-            }}
-          />
-        </Stack>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <>
+      {
+        showSplash ? <CustomSplashScreen /> : null
+      }
+      <SafeAreaProvider>
+
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <AuthProvider>
+
+            <Stack initialRouteName={isAuthenticated ? '(tabs)' : 'welcome'} screenOptions={{ headerShown: false }}>
+              <Stack.Screen
+                name="welcome"
+                options={{
+                  headerShown: false,
+                  gestureEnabled: false,
+                }}
+              />
+              <Stack.Screen
+                name="onboarding"
+                options={{
+                  headerShown: false,
+                  gestureEnabled: false,
+                }}
+              />
+              <Stack.Screen
+                name="signup"
+                options={{
+                  headerShown: false,
+                  gestureEnabled: false,
+                }}
+              />
+              <Stack.Screen
+                name="login"
+                options={{
+                  headerShown: false,
+                  gestureEnabled: false,
+                }}
+              />
+              <Stack.Screen
+                name="(tabs)"
+                options={{
+                  headerShown: false,
+                  gestureEnabled: false,
+                }}
+              />
+              <Stack.Screen
+                name="+not-found"
+                options={{
+                  title: 'Oops!',
+                }}
+              />
+            </Stack>
+          </AuthProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </>
   );
 }
 
@@ -141,12 +161,12 @@ function CustomSplashScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
-      
+
       {/* Wood texture overlay */}
       <View style={styles.woodTexture} />
-      
+
       {/* Main content */}
-      <Animated.View 
+      <Animated.View
         style={[
           styles.content,
           {
@@ -161,17 +181,19 @@ function CustomSplashScreen() {
             <IconSymbol name="hammer.fill" size={120} color="#FFFFFF" />
           </Animated.View>
         </View>
-        
+
         {/* App title - positioned at bottom with fade animation */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.titleContainer,
             {
               opacity: titleFadeAnim,
-              transform: [{ translateY: titleFadeAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [20, 0],
-              })}]
+              transform: [{
+                translateY: titleFadeAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0],
+                })
+              }]
             }
           ]}
         >
@@ -186,6 +208,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#8B4513',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
   },
   backgroundGradient: {
     position: 'absolute',

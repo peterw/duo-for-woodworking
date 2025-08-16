@@ -1,29 +1,29 @@
+import { CreateUserData, firestoreService, FirestoreUser } from '@/services/firestoreService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-export interface User {
-  id: string;
-  fullName: string;
-  username: string;
-  email: string;
-  experience: 'beginner' | 'intermediate' | 'advanced';
-  createdAt: string;
-}
+export interface User extends FirestoreUser {}
 
 interface AuthState {
   // State
   isAuthenticated: boolean;
   user: User | null;
-  token: string | null;
+  firebaseUser: FirebaseAuthTypes.User | null;
   isLoading: boolean;
+  error: string | null;
   
   // Actions
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (userData: Omit<User, 'id' | 'createdAt'>) => Promise<boolean>;
-  logout: () => void;
+  signup: (userData: CreateUserData, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
   checkAuthStatus: () => Promise<void>;
+  resetPassword: (email: string) => Promise<boolean>;
+  updateProfile: (updates: Partial<User>) => Promise<boolean>;
+  deleteAccount: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -32,138 +32,377 @@ export const useAuthStore = create<AuthState>()(
       // Initial state
       isAuthenticated: false,
       user: null,
-      token: null,
+      firebaseUser: null,
       isLoading: false,
+      error: null,
 
       // Actions
       setLoading: (loading: boolean) => set({ isLoading: loading }),
+      setError: (error: string | null) => set({ error }),
+      clearError: () => set({ error: null }),
 
       checkAuthStatus: async () => {
         try {
-          const token = await AsyncStorage.getItem('auth_token');
-          const userData = await AsyncStorage.getItem('user_data');
+          set({ isLoading: true });
           
-          if (token && userData) {
-            const user = JSON.parse(userData);
-            set({
-              isAuthenticated: true,
-              user,
-              token,
-            });
-          } else {
-            set({
-              isAuthenticated: false,
-              user: null,
-              token: null,
-            });
-          }
+          // Listen to Firebase auth state changes
+          auth().onAuthStateChanged(async (firebaseUser) => {
+            if (firebaseUser) {
+              // User is signed in
+              try {
+                // Get user data from Firestore
+                const userData = await firestoreService.getUser(firebaseUser.uid);
+                
+                if (userData) {
+                  // Update daily login and streak
+                  const streakData = await firestoreService.updateDailyLogin(firebaseUser.uid);
+                  
+                  const updatedUser = {
+                    ...userData,
+                    ...streakData,
+                  };
+                  
+                  set({
+                    isAuthenticated: true,
+                    user: updatedUser,
+                    firebaseUser,
+                    isLoading: false,
+                    error: null,
+                  });
+                } else {
+                  // User exists in Firebase Auth but not in Firestore
+                  set({
+                    isAuthenticated: false,
+                    user: null,
+                    firebaseUser: null,
+                    isLoading: false,
+                    error: 'Your account profile is incomplete. Please contact support to restore your account.',
+                  });
+                }
+                              } catch (error) {
+                  console.error('Error fetching user data:', error);
+                  set({
+                    isAuthenticated: false,
+                    user: null,
+                    firebaseUser: null,
+                    isLoading: false,
+                    error: 'Unable to load your profile. Please check your connection and try again.',
+                  });
+                }
+            } else {
+              // User is signed out
+              set({
+                isAuthenticated: false,
+                user: null,
+                firebaseUser: null,
+                isLoading: false,
+                error: null,
+              });
+            }
+          });
         } catch (error) {
           console.error('Error checking auth status:', error);
           set({
             isAuthenticated: false,
             user: null,
-            token: null,
+            firebaseUser: null,
+            isLoading: false,
+            error: 'Unable to verify your account status. Please check your connection and try again.',
           });
         }
       },
 
       login: async (email: string, password: string) => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         
         try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          const userCredential = await auth().signInWithEmailAndPassword(email, password);
+          const firebaseUser = userCredential.user;
           
-          // For demo purposes, accept any email/password combination
-          if (email && password) {
-            // Create mock user data
-            const user: User = {
-              id: 'user_' + Date.now(),
-              fullName: 'Demo User',
-              username: 'demo_user',
-              email,
-              experience: 'beginner',
-              createdAt: new Date().toISOString(),
-            };
+          if (firebaseUser) {
+            // Get user data from Firestore
+            const userData = await firestoreService.getUser(firebaseUser.uid);
             
-            const token = 'token_' + Date.now();
-            
-            // Store in AsyncStorage
-            await AsyncStorage.setItem('auth_token', token);
-            await AsyncStorage.setItem('user_data', JSON.stringify(user));
-            
-            // Update state
-            set({
-              isAuthenticated: true,
-              user,
-              token,
-              isLoading: false,
-            });
-            
-            return true;
+            if (userData) {
+              try {
+                // Update daily login and streak
+                const streakData = await firestoreService.updateDailyLogin(firebaseUser.uid);
+                
+                const updatedUser = {
+                  ...userData,
+                  ...streakData,
+                };
+                
+                set({
+                  isAuthenticated: true,
+                  user: updatedUser,
+                  firebaseUser,
+                  isLoading: false,
+                  error: null,
+                });
+                
+                return true;
+              } catch (streakError: any) {
+                console.error('Error updating daily login:', streakError);
+                
+                // Still allow login even if streak update fails
+                set({
+                  isAuthenticated: true,
+                  user: userData,
+                  firebaseUser,
+                  isLoading: false,
+                  error: null,
+                });
+                
+                return true;
+              }
+            } else {
+              set({ 
+                isLoading: false, 
+                error: 'User profile not found. Please contact support to restore your account.' 
+              });
+              return false;
+            }
           } else {
-            set({ isLoading: false });
+            set({ 
+              isLoading: false, 
+              error: 'Login failed. Please check your credentials.' 
+            });
             return false;
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Login error:', error);
-          set({ isLoading: false });
+          let errorMessage = 'Login failed. Please try again.';
+          
+          if (error.code === 'auth/user-not-found') {
+            errorMessage = 'No account found with this email address. Please check your email or create a new account.';
+          } else if (error.code === 'auth/wrong-password') {
+            errorMessage = 'Incorrect password. Please check your password and try again.';
+          } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Please enter a valid email address.';
+          } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = 'Too many failed login attempts. Please wait a few minutes before trying again.';
+          } else if (error.code === 'auth/network-request-failed') {
+            errorMessage = 'Network error. Please check your internet connection and try again.';
+          } else if (error.code === 'auth/user-disabled') {
+            errorMessage = 'This account has been disabled. Please contact support.';
+          } else if (error.code === 'auth/invalid-credential') {
+            errorMessage = 'Invalid login credentials. Please check your email and password.';
+          }
+          
+          set({ isLoading: false, error: errorMessage });
           return false;
         }
       },
 
-      signup: async (userData: Omit<User, 'id' | 'createdAt'>) => {
-        set({ isLoading: true });
+      signup: async (userData: CreateUserData, password: string) => {
+        set({ isLoading: true, error: null });
         
         try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          // Check if username is available
+          const isUsernameAvailable = await firestoreService.isUsernameAvailable(userData.username);
+          if (!isUsernameAvailable) {
+            set({ 
+              isLoading: false, 
+              error: 'Username is already taken. Please choose a different username.' 
+            });
+            return false;
+          }
           
-          // Create user
-          const user: User = {
-            ...userData,
-            id: 'user_' + Date.now(),
-            createdAt: new Date().toISOString(),
-          };
+          // Create Firebase Auth user
+          const userCredential = await auth().createUserWithEmailAndPassword(userData.email, password);
+          const firebaseUser = userCredential.user;
           
-          const token = 'token_' + Date.now();
-          
-          // Store in AsyncStorage
-          await AsyncStorage.setItem('auth_token', token);
-          await AsyncStorage.setItem('user_data', JSON.stringify(user));
-          await AsyncStorage.setItem('onboarding_completed', 'true');
-          
-          // Update state
-          set({
-            isAuthenticated: true,
-            user,
-            token,
-            isLoading: false,
-          });
-          
-          return true;
-        } catch (error) {
+          if (firebaseUser) {
+            try {
+              // Create user document in Firestore
+              const newUser = await firestoreService.createUser(userData);
+              
+              set({
+                isAuthenticated: true,
+                user: newUser,
+                firebaseUser,
+                isLoading: false,
+                error: null,
+              });
+              
+              return true;
+            } catch (firestoreError: any) {
+              console.error('Firestore user creation error:', firestoreError);
+              
+              // Delete the Firebase Auth user if Firestore creation fails
+              try {
+                await firebaseUser.delete();
+              } catch (deleteError) {
+                console.error('Error deleting Firebase user after Firestore failure:', deleteError);
+              }
+              
+              let errorMessage = 'Account creation failed. Please try again.';
+              if (firestoreError.message?.includes('network')) {
+                errorMessage = 'Network error during account creation. Please check your connection and try again.';
+              } else if (firestoreError.message?.includes('permission')) {
+                errorMessage = 'Permission denied. Please contact support.';
+              }
+              
+              set({ 
+                isLoading: false, 
+                error: errorMessage 
+              });
+              return false;
+            }
+          } else {
+            set({ 
+              isLoading: false, 
+              error: 'Account creation failed. Please try again.' 
+            });
+            return false;
+          }
+        } catch (error: any) {
           console.error('Signup error:', error);
-          set({ isLoading: false });
+          let errorMessage = 'Account creation failed. Please try again.';
+          
+          if (error.code === 'auth/email-already-in-use') {
+            errorMessage = 'An account with this email already exists. Please use a different email or try logging in instead.';
+          } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Please enter a valid email address.';
+          } else if (error.code === 'auth/weak-password') {
+            errorMessage = 'Password is too weak. Please use at least 6 characters and include a mix of letters, numbers, and symbols.';
+          } else if (error.code === 'auth/network-request-failed') {
+            errorMessage = 'Network error. Please check your internet connection and try again.';
+          } else if (error.code === 'auth/operation-not-allowed') {
+            errorMessage = 'Account creation is currently disabled. Please contact support.';
+          } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = 'Too many signup attempts. Please wait a few minutes before trying again.';
+          }
+          
+          set({ isLoading: false, error: errorMessage });
           return false;
         }
       },
 
       logout: async () => {
         try {
-          // Clear AsyncStorage
-          await AsyncStorage.removeItem('auth_token');
-          await AsyncStorage.removeItem('user_data');
-          await AsyncStorage.removeItem('onboarding_completed');
+          set({ isLoading: true });
+          await auth().signOut();
           
-          // Clear state
           set({
             isAuthenticated: false,
             user: null,
-            token: null,
+            firebaseUser: null,
+            isLoading: false,
+            error: null,
           });
-        } catch (error) {
+        } catch (error: any) {
           console.error('Logout error:', error);
+          
+          let errorMessage = 'Logout failed. Please try again.';
+          if (error.message?.includes('network')) {
+            errorMessage = 'Network error during logout. Please check your connection and try again.';
+          } else if (error.message?.includes('permission')) {
+            errorMessage = 'Permission denied. Please contact support.';
+          }
+          
+          set({ isLoading: false, error: errorMessage });
+        }
+      },
+
+      resetPassword: async (email: string) => {
+        set({ isLoading: true, error: null });
+        
+        try {
+          await auth().sendPasswordResetEmail(email);
+          set({ isLoading: false, error: null });
+          return true;
+        } catch (error: any) {
+          console.error('Password reset error:', error);
+          let errorMessage = 'Password reset failed. Please try again.';
+          
+          if (error.code === 'auth/user-not-found') {
+            errorMessage = 'No account found with this email address. Please check your email or create a new account.';
+          } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Please enter a valid email address.';
+          } else if (error.code === 'auth/network-request-failed') {
+            errorMessage = 'Network error. Please check your internet connection and try again.';
+          } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = 'Too many password reset attempts. Please wait a few minutes before trying again.';
+          } else if (error.code === 'auth/operation-not-allowed') {
+            errorMessage = 'Password reset is currently disabled. Please contact support.';
+          }
+          
+          set({ isLoading: false, error: errorMessage });
+          return false;
+        }
+      },
+
+      updateProfile: async (updates: Partial<User>) => {
+        const { user } = get();
+        if (!user) {
+          set({ error: 'You must be logged in to update your profile.' });
+          return false;
+        }
+        
+        try {
+          await firestoreService.updateUser(user.uid, updates);
+          
+          // Update local state
+          set({
+            user: { ...user, ...updates },
+            error: null,
+          });
+          
+          return true;
+        } catch (error: any) {
+          console.error('Profile update error:', error);
+          
+          let errorMessage = 'Profile update failed. Please try again.';
+          if (error.message?.includes('network')) {
+            errorMessage = 'Network error. Please check your connection and try again.';
+          } else if (error.message?.includes('permission')) {
+            errorMessage = 'Permission denied. Please contact support.';
+          }
+          
+          set({ error: errorMessage });
+          return false;
+        }
+      },
+
+      deleteAccount: async () => {
+        const { user, firebaseUser } = get();
+        if (!user || !firebaseUser) {
+          set({ error: 'You must be logged in to delete your account.' });
+          return false;
+        }
+        
+        try {
+          // Delete from Firestore first
+          await firestoreService.deleteUser(user.uid);
+          
+          // Delete Firebase Auth user
+          await firebaseUser.delete();
+          
+          set({
+            isAuthenticated: false,
+            user: null,
+            firebaseUser: null,
+            isLoading: false,
+            error: null,
+          });
+          
+          return true;
+        } catch (error: any) {
+          console.error('Account deletion error:', error);
+          
+          let errorMessage = 'Account deletion failed. Please try again.';
+          if (error.message?.includes('network')) {
+            errorMessage = 'Network error. Please check your connection and try again.';
+          } else if (error.message?.includes('permission')) {
+            errorMessage = 'Permission denied. Please contact support.';
+          } else if (error.message?.includes('requires-recent-login')) {
+            errorMessage = 'For security, please log in again before deleting your account.';
+          }
+          
+          set({ error: errorMessage });
+          return false;
         }
       },
     }),
@@ -173,7 +412,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
         user: state.user,
-        token: state.token,
+        isLoading: state.isLoading,
       }),
     }
   )

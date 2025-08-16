@@ -1,5 +1,7 @@
+import { firestoreService } from '@/services/firestoreService';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { useAuthStore } from './authStore';
 import { zuStandStorage } from './mmkvStorage';
 
 
@@ -368,7 +370,7 @@ export const useUserProgressStore = create<UserProgressStore>()(
       lastLoginDate: '',
 
       // Actions
-      checkDailyLogin: () => {
+      checkDailyLogin: async () => {
         const today = new Date().toDateString();
         const { lastLoginDate, currentStreak, longestStreak } = get();
         
@@ -377,50 +379,79 @@ export const useUserProgressStore = create<UserProgressStore>()(
           yesterday.setDate(yesterday.getDate() - 1);
           const isConsecutive = lastLoginDate === yesterday.toDateString();
           
+          let newCurrentStreak: number;
+          let newLongestStreak: number;
+          
           if (isConsecutive) {
-            const newStreak = currentStreak + 1;
-            set({
-              currentStreak: newStreak,
-              longestStreak: Math.max(newStreak, longestStreak),
-              lastLoginDate: today,
-              dailyGoals: {
-                practice: false,
-                skill: false,
-                project: false,
-              }
-            });
+            newCurrentStreak = currentStreak + 1;
+            newLongestStreak = Math.max(newCurrentStreak, longestStreak);
           } else {
-            set({
-              currentStreak: 1,
-              lastLoginDate: today,
-              dailyGoals: {
-                practice: false,
-                skill: false,
-                project: false,
-              }
-            });
+            newCurrentStreak = 1;
+            newLongestStreak = longestStreak;
+          }
+
+          // Update local state
+          set({
+            currentStreak: newCurrentStreak,
+            longestStreak: newLongestStreak,
+            lastLoginDate: today,
+            dailyGoals: {
+              practice: false,
+              skill: false,
+              project: false,
+            }
+          });
+
+          // Sync with Firestore if user is authenticated
+          try {
+            const { user } = useAuthStore.getState();
+            if (user?.uid) {
+              await firestoreService.updateUserProgress(user.uid, {
+                currentStreak: newCurrentStreak,
+                longestStreak: newLongestStreak,
+                dailyGoals: {
+                  practice: false,
+                  skill: false,
+                  project: false,
+                },
+              });
+            }
+          } catch (error) {
+            console.error('Error syncing progress with Firestore:', error);
           }
         }
       },
 
-      completeDailyGoal: (goalId) => {
+      completeDailyGoal: async (goalId) => {
         const { dailyGoals, totalXP } = get();
         const xpReward = 25;
+        const newTotalXP = totalXP + xpReward;
+        const newLevel = Math.floor(newTotalXP / 500) + 1;
         
         set({
           dailyGoals: {
             ...dailyGoals,
             [goalId]: true,
           },
-          totalXP: totalXP + xpReward,
+          totalXP: newTotalXP,
+          level: newLevel > get().level ? newLevel : get().level,
         });
         
-        // Check if level should increase
-        const newTotalXP = totalXP + xpReward;
-        const newLevel = Math.floor(newTotalXP / 500) + 1;
-        
-        if (newLevel > get().level) {
-          set({ level: newLevel });
+        // Sync with Firestore if user is authenticated
+        try {
+          const { user } = useAuthStore.getState();
+          if (user?.uid) {
+            await firestoreService.updateUserProgress(user.uid, {
+              dailyGoals: {
+                ...dailyGoals,
+                [goalId]: true,
+              },
+              totalXP: newTotalXP,
+              level: newLevel > get().level ? newLevel : get().level,
+            });
+          }
+        } catch (error) {
+          console.error('Error syncing progress with Firestore:', error);
         }
       },
 
@@ -433,7 +464,7 @@ export const useUserProgressStore = create<UserProgressStore>()(
         }
       },
 
-      completeSkill: (skillId) => {
+      completeSkill: async (skillId) => {
         const skill = woodworkingSkills.find(s => s.id === skillId);
         if (skill) {
           const { totalXP, skillsCompleted, completedSkills } = get();
@@ -446,10 +477,25 @@ export const useUserProgressStore = create<UserProgressStore>()(
             level: newLevel,
             completedSkills: [...completedSkills, skillId],
           });
+
+          // Sync with Firestore if user is authenticated
+          try {
+            const { user } = useAuthStore.getState();
+            if (user?.uid) {
+              await firestoreService.updateUserProgress(user.uid, {
+                totalXP: newTotalXP,
+                skillsCompleted: skillsCompleted + 1,
+                level: newLevel,
+                completedSkills: [...completedSkills, skillId],
+              });
+            }
+          } catch (error) {
+            console.error('Error syncing progress with Firestore:', error);
+          }
         }
       },
 
-      completeProject: (projectId) => {
+      completeProject: async (projectId) => {
         const { totalProjects, totalXP } = get();
         const projectXP = 200;
         const newTotalXP = totalXP + projectXP;
@@ -460,9 +506,23 @@ export const useUserProgressStore = create<UserProgressStore>()(
           totalXP: newTotalXP,
           level: newLevel,
         });
+
+        // Sync with Firestore if user is authenticated
+        try {
+          const { user } = useAuthStore.getState();
+          if (user?.uid) {
+            await firestoreService.updateUserProgress(user.uid, {
+              totalProjects: totalProjects + 1,
+              totalXP: newTotalXP,
+              level: newLevel,
+            });
+          }
+        } catch (error) {
+          console.error('Error syncing progress with Firestore:', error);
+        }
       },
 
-      addXP: (amount) => {
+      addXP: async (amount) => {
         const { totalXP } = get();
         const newTotalXP = totalXP + amount;
         const newLevel = Math.floor(newTotalXP / 500) + 1;
@@ -471,6 +531,19 @@ export const useUserProgressStore = create<UserProgressStore>()(
           totalXP: newTotalXP,
           level: newLevel,
         });
+
+        // Sync with Firestore if user is authenticated
+        try {
+          const { user } = useAuthStore.getState();
+          if (user?.uid) {
+            await firestoreService.updateUserProgress(user.uid, {
+              totalXP: newTotalXP,
+              level: newLevel,
+            });
+          }
+        } catch (error) {
+          console.error('Error syncing progress with Firestore:', error);
+        }
       },
 
       resetProgress: () => {
