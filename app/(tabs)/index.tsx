@@ -475,6 +475,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    paddingTop:10,
     paddingBottom: 100,
   },
   statsContainer: {

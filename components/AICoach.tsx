@@ -190,7 +190,7 @@ export default function AICoach() {
       <View style={styles.quickActions}>
         <TouchableOpacity style={[styles.quickActionButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
           <IconSymbol name="questionmark.circle.fill" size={20} color="white" />
-          <Text style={styles.quickActionText}>Ask Coach</Text>
+          <Text style={[styles.quickActionText, { color: "white" }]}>Ask Coach</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.quickActionButton, { backgroundColor: Colors[colorScheme ?? 'light'].background, borderColor: Colors[colorScheme ?? 'light'].border }]}>
           <IconSymbol name="book.fill" size={20} color={Colors[colorScheme ?? 'light'].tint} />

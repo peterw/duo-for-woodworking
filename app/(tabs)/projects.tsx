@@ -5,12 +5,12 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useUserProgressStore, woodworkingProjects } from '@/stores';
 import React, { useState } from 'react';
 import {
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -217,7 +217,7 @@ export default function ProjectsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <Header 
-          title="Woodworking Projects" 
+          title="Wood Working Projects" 
           subtitle="Choose from hundreds of projects to build"
           showSafeArea={false}
         />

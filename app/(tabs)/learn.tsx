@@ -176,59 +176,60 @@ export default function LearnScreen() {
     return (
       <View style={[styles.skillDetailsContainer, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
         <View style={styles.skillDetailsHeader}>
-          <IconSymbol name={selectedSkill.icon as any} size={60} color={Colors[colorScheme ?? 'light'].tint} style={styles.skillDetailsIcon} />
+          <View style={[styles.skillDetailsIconContainer, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
+            <IconSymbol name={selectedSkill.icon as any} size={32} color="white" />
+          </View>
           <View style={styles.skillDetailsContent}>
             <Text style={[styles.skillDetailsTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
               {selectedSkill.title}
             </Text>
-            <Text style={[styles.skillDetailsLevel, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
-              Level {selectedSkill.level}
-            </Text>
+            <View style={styles.skillDetailsMeta}>
+              <View style={[styles.levelBadge, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
+                <Text style={styles.levelBadgeText}>Level {selectedSkill.level}</Text>
+              </View>
+              <View style={[styles.xpBadge, { backgroundColor: Colors[colorScheme ?? 'light'].success }]}>
+                <Text style={styles.xpBadgeText}>+{selectedSkill.xpReward} XP</Text>
+              </View>
+            </View>
             <Text style={[styles.skillDetailsDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
               {selectedSkill.description}
             </Text>
-            <View style={styles.skillDetailsActions}>
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}
-                onPress={() => {
-                  completeSkill(selectedSkill.id);
-                  setSelectedSkill(null);
-                }}
-              >
-                <Text style={[styles.actionButtonText, { color: 'white' }]}>Start Learning</Text>
-                <IconSymbol name="arrow.right" size={20} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: Colors[colorScheme ?? 'light'].border }]}
-                onPress={() => setSelectedSkill(null)}
-              >
-                <Text style={[styles.actionButtonText, { color: Colors[colorScheme ?? 'light'].text }]}>Close</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
+        
+     
         
         {!isUnlocked && (
           <View style={styles.prerequisitesSection}>
             <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
               Prerequisites Required
             </Text>
-            {selectedSkill.prerequisites.map((prereqId: string) => {
-              const prereqSkill = woodworkingSkills.find((s: any) => s.id === prereqId);
-              const isCompleted = completedSkills.includes(prereqId);
-              return (
-                <View key={prereqId} style={styles.prerequisiteItem}>
-                  <IconSymbol 
-                    name={isCompleted ? "checkmark.circle.fill" : "circle"} 
-                    size={20} 
-                    color={isCompleted ? Colors[colorScheme ?? 'light'].success : Colors[colorScheme ?? 'light'].tabIconDefault} 
-                  />
-                  <Text style={[styles.prerequisiteText, { color: Colors[colorScheme ?? 'light'].text }]}>
-                    {prereqSkill?.title || prereqId}
-                  </Text>
-                </View>
-              );
-            })}
+            <View style={styles.prerequisitesList}>
+              {selectedSkill.prerequisites.map((prereqId: string) => {
+                const prereqSkill = woodworkingSkills.find((s: any) => s.id === prereqId);
+                const isCompleted = completedSkills.includes(prereqId);
+                return (
+                  <View key={prereqId} style={[styles.prerequisiteItem, { 
+                    backgroundColor: isCompleted 
+                      ? Colors[colorScheme ?? 'light'].success + '15' 
+                      : Colors[colorScheme ?? 'light'].backgroundSecondary 
+                  }]}>
+                    <IconSymbol 
+                      name={isCompleted ? "checkmark.circle.fill" : "circle"} 
+                      size={20} 
+                      color={isCompleted ? Colors[colorScheme ?? 'light'].success : Colors[colorScheme ?? 'light'].tabIconDefault} 
+                    />
+                    <Text style={[styles.prerequisiteText, { 
+                      color: isCompleted 
+                        ? Colors[colorScheme ?? 'light'].success 
+                        : Colors[colorScheme ?? 'light'].text 
+                    }]}>
+                      {prereqSkill?.title || prereqId}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         )}
         
@@ -237,16 +238,18 @@ export default function LearnScreen() {
             <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
               What You'll Learn
             </Text>
-            {selectedSkill.microSteps.map((step, index) => (
-              <View key={index} style={styles.microStepItem}>
-                <Text style={[styles.microStepNumber, { color: Colors[colorScheme ?? 'light'].tint }]}>
-                  {index + 1}
-                </Text>
-                <Text style={[styles.microStepText, { color: Colors[colorScheme ?? 'light'].text }]}>
-                  {step}
-                </Text>
-              </View>
-            ))}
+            <View style={styles.microStepsList}>
+              {selectedSkill.microSteps.map((step, index) => (
+                <View key={index} style={styles.microStepItem}>
+                  <View style={[styles.microStepNumber, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
+                    <Text style={styles.microStepNumberText}>{index + 1}</Text>
+                  </View>
+                  <Text style={[styles.microStepText, { color: Colors[colorScheme ?? 'light'].text }]}>
+                    {step}
+                  </Text>
+                </View>
+              ))}
+            </View>
             
             <TouchableOpacity
               style={[styles.startLearningButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}
@@ -272,6 +275,36 @@ export default function LearnScreen() {
             </Text>
           </View>
         )}
+
+           {/* Action Buttons Section */}
+           <View style={[styles.actionButtonsSection, { borderTopColor: Colors[colorScheme ?? 'light'].border + '30' }]}>
+          <View style={styles.skillDetailsActions}>
+
+              <TouchableOpacity
+                style={[styles.startButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}
+                onPress={() => {
+                  completeSkill(selectedSkill.id);
+                  setSelectedSkill(null);
+                }}
+              >
+                <IconSymbol name="play.fill" size={18} color="white" />
+                <Text style={styles.startButtonText}>Start Learning</Text>
+              </TouchableOpacity>
+
+            
+            <TouchableOpacity
+              style={[styles.closeButton, { 
+                borderColor: Colors[colorScheme ?? 'light'].border,
+                backgroundColor: Colors[colorScheme ?? 'light'].backgroundSecondary
+              }]}
+              onPress={() => setSelectedSkill(null)}
+            >
+              <Text style={[styles.closeButtonText, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     );
   };
@@ -425,130 +458,225 @@ const styles = StyleSheet.create({
   skillDetailsContainer: {
     marginHorizontal: 20,
     marginTop: 20,
-    padding: 20,
-    borderRadius: 16,
+    padding: 24,
+    borderRadius: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
   },
   skillDetailsHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
+    alignItems: 'flex-start',
+    marginBottom: 24,
   },
-  skillDetailsIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  skillDetailsIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   skillDetailsContent: {
     flex: 1,
   },
   skillDetailsTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
-    marginBottom: 4,
-  },
-  skillDetailsLevel: {
-    fontSize: 16,
-    fontWeight: '500',
     marginBottom: 8,
+    lineHeight: 28,
+  },
+  skillDetailsMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  levelBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+  levelBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+  xpBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  xpBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
   },
   skillDetailsDescription: {
     fontSize: 16,
     lineHeight: 24,
-    marginBottom: 16,
+
+    opacity: 0.9,
   },
   skillDetailsActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
-  actionButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+  actionButtonsSection: {
+    paddingTop: 20,
+    borderTopWidth: 1,
+  },
+  startButton: {
+    flex: 2,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  startButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginLeft: 8,
+    color: 'white',
+  },
+  closeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'transparent',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  actionButtonText: {
+  closeButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
   prerequisitesSection: {
-    marginBottom: 24,
+    marginBottom: 28,
+    paddingTop: 8,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 16,
-    textAlign: 'center',
+    marginBottom: 20,
+    textAlign: 'left',
+  },
+  prerequisitesList: {
+    gap: 10,
   },
   prerequisiteItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   prerequisiteText: {
-    fontSize: 14,
-    marginLeft: 8,
+    fontSize: 15,
+    marginLeft: 12,
+    flex: 1,
+    fontWeight: '500',
   },
   microStepsSection: {
+    marginBottom: 28,
+    paddingTop: 8,
+  },
+  microStepsList: {
+    gap: 16,
     marginBottom: 24,
   },
   microStepItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
   },
   microStepNumber: {
-    fontSize: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  microStepNumberText: {
+    fontSize: 14,
     fontWeight: '700',
-    marginRight: 12,
-    minWidth: 20,
+    color: 'white',
   },
   microStepText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
     flex: 1,
+    fontWeight: '500',
   },
   startLearningButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 16,
+    paddingHorizontal: 28,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   startLearningButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    marginRight: 8,
+    marginRight: 10,
   },
   completedSection: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 24,
+    paddingTop: 8,
   },
   completedText: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
-    marginTop: 12,
-    marginBottom: 4,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   completedSubtext: {
-    fontSize: 14,
+    fontSize: 16,
     textAlign: 'center',
+    opacity: 0.8,
   },
   lessonSection: {
     marginHorizontal: 20,

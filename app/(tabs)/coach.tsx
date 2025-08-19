@@ -189,8 +189,8 @@ export default function CoachScreen() {
         left: {
           backgroundColor: colors?.primary || '#8B4513',
           borderRadius: 24,
-          paddingHorizontal: 16,
-          paddingVertical: 12,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
           marginBottom: 12,
           maxWidth: screenWidth * 0.75,
           shadowColor: '#000',
@@ -202,8 +202,8 @@ export default function CoachScreen() {
         right: {
           backgroundColor: '#E8F5E8',
           borderRadius: 24,
-          paddingHorizontal: 16,
-          paddingVertical: 12,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
           marginBottom: 12,
           marginRight: 8,
           maxWidth: screenWidth * 0.75,
@@ -226,6 +226,18 @@ export default function CoachScreen() {
           fontSize: 16,
           lineHeight: 24,
           fontWeight: '500',
+        },
+      }}
+      timeTextStyle={{
+        left: {
+          color: '#cfcfcf',
+          fontSize: 12,
+          fontWeight: '400',
+        },
+        right: {
+          color: '#999',
+          fontSize: 12,
+          fontWeight: '400',
         },
       }}
     />
@@ -260,7 +272,8 @@ export default function CoachScreen() {
         borderRadius: 28,
         paddingHorizontal: 20,
         paddingVertical: 12,
-        height: 56,
+        minHeight: 56,
+        maxHeight: 56,
         fontSize: 16,
         lineHeight: 20,
         fontWeight: '400',
@@ -355,7 +368,6 @@ export default function CoachScreen() {
         
         <View style={styles.chatContainer}>
           <GiftedChat
-          
             messages={messages}
             onSend={onSend}
             user={{
@@ -374,13 +386,13 @@ export default function CoachScreen() {
             renderFooter={renderFooter}
             renderAvatar={renderAvatar}
             placeholder="Ask me about woodworking..."
-            maxComposerHeight={120}
+            maxComposerHeight={56}
             minComposerHeight={56}
             maxInputLength={500}
             textInputProps={{
-              multiline: true,
+              multiline: false,
               returnKeyType: 'send',
-              blurOnSubmit: false,
+              blurOnSubmit: true,
             }}
           />
         </View>
