@@ -1,6 +1,8 @@
+import { LessonCard } from '@/components/LessonCard';
 import { Header } from '@/components/ui/Header';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Colors } from '@/constants/Colors';
+import { Colors } from '@/constants/DesignSystem';
+import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useUserProgressStore, woodworkingSkills } from '@/stores';
 import React, { useState } from 'react';
@@ -290,6 +292,56 @@ export default function LearnScreen() {
         
         {renderSkillDetails()}
         
+        {/* Duolingo-style Lesson List */}
+        <View style={styles.lessonSection}>
+          <Text style={[styles.sectionTitle, { color: Colors.textPrimary }]}>
+            Today's Lessons
+          </Text>
+          <Text style={[styles.sectionSubtitle, { color: Colors.textSecondary }]}>
+            Continue your woodworking journey
+          </Text>
+          
+          <View style={styles.lessonList}>
+            <LessonCard
+              title="Basic Tool Safety"
+              description="Learn essential safety practices for using hand tools and power tools in the workshop."
+              difficulty="Beginner"
+              progress={75}
+              duration="15 min"
+              onPress={() => console.log('Basic Tool Safety pressed')}
+            />
+            
+            <LessonCard
+              title="Measuring & Marking"
+              description="Master the fundamentals of accurate measurement and marking techniques."
+              difficulty="Beginner"
+              progress={100}
+              duration="20 min"
+              onPress={() => console.log('Measuring & Marking pressed')}
+              isCompleted={true}
+            />
+            
+            <LessonCard
+              title="Sawing Techniques"
+              description="Learn proper sawing techniques for different types of cuts and materials."
+              difficulty="Intermediate"
+              progress={0}
+              duration="25 min"
+              onPress={() => console.log('Sawing Techniques pressed')}
+              isLocked={true}
+            />
+            
+            <LessonCard
+              title="Joinery Basics"
+              description="Explore fundamental woodworking joints and their applications."
+              difficulty="Intermediate"
+              progress={45}
+              duration="30 min"
+              onPress={() => console.log('Joinery Basics pressed')}
+            />
+          </View>
+        </View>
+        
         <View style={styles.progressSection}>
           <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
             Your Progress
@@ -497,6 +549,29 @@ const styles = StyleSheet.create({
   completedSubtext: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  lessonSection: {
+    marginHorizontal: 20,
+    marginTop: 30,
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: Colors.background,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionSubtitle: {
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 16,
+    lineHeight: 24,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  lessonList: {
+    gap: 16,
   },
   progressSection: {
     marginHorizontal: 20,

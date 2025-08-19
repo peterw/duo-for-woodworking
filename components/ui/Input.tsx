@@ -1,5 +1,5 @@
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Colors } from '@/constants/Colors';
+import { BorderRadius, Colors, Spacing } from '@/constants/DesignSystem';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React, { useState } from 'react';
 import {
@@ -46,12 +46,11 @@ export function Input({
   ...textInputProps
 }: InputProps) {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
   const [isFocused, setIsFocused] = useState(false);
 
   const getContainerStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
-      marginBottom: 16,
+      marginBottom: Spacing.md,
     };
 
     return baseStyle;
@@ -61,42 +60,42 @@ export function Input({
     const baseStyle: ViewStyle = {
       flexDirection: 'row',
       alignItems: 'center',
-      borderRadius: 12,
+      borderRadius: BorderRadius.md,
       borderWidth: 1,
-      backgroundColor: colors.background,
+      backgroundColor: Colors.background,
     };
 
     // Size styles
     switch (size) {
       case 'small':
-        baseStyle.paddingVertical = 8;
-        baseStyle.paddingHorizontal = 12;
+        baseStyle.paddingVertical = Spacing.sm;
+        baseStyle.paddingHorizontal = Spacing.md;
         baseStyle.minHeight = 40;
         break;
       case 'large':
-        baseStyle.paddingVertical = 16;
-        baseStyle.paddingHorizontal = 20;
+        baseStyle.paddingVertical = Spacing.md;
+        baseStyle.paddingHorizontal = Spacing.lg;
         baseStyle.minHeight = 56;
         break;
       default: // medium
-        baseStyle.paddingVertical = 12;
-        baseStyle.paddingHorizontal = 16;
+        baseStyle.paddingVertical = Spacing.md;
+        baseStyle.paddingHorizontal = Spacing.md;
         baseStyle.minHeight = 48;
     }
 
     // Variant styles
     switch (variant) {
       case 'outlined':
-        baseStyle.borderColor = error ? colors.error : isFocused ? colors.tint : colors.border;
-        baseStyle.backgroundColor = colors.background;
+        baseStyle.borderColor = error ? Colors.error : isFocused ? Colors.primary : Colors.gray200;
+        baseStyle.backgroundColor = Colors.background;
         break;
       case 'filled':
         baseStyle.borderColor = 'transparent';
-        baseStyle.backgroundColor = colors.border;
+        baseStyle.backgroundColor = Colors.gray100;
         break;
       default:
-        baseStyle.borderColor = error ? colors.error : isFocused ? colors.tint : colors.border;
-        baseStyle.backgroundColor = colors.background;
+        baseStyle.borderColor = error ? Colors.error : isFocused ? Colors.primary : Colors.gray200;
+        baseStyle.backgroundColor = Colors.background;
     }
 
     if (isFocused) {

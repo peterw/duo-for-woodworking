@@ -1,10 +1,9 @@
 import GeneralStatusBarColor from '@/components/GeneralStatusBarColor';
 import { Button } from '@/components/ui/Button';
+import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/stores';
-import { RPH, RPW } from '@/utils/utils';
 import { useFocusEffect } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -15,7 +14,6 @@ import {
   Text,
   View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -23,7 +21,12 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const { isAuthenticated, user } = useAuthStore();
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+  
+  // Duolingo-style animation refs (no fade animations)
+  const titleAnim = useRef(new Animated.Value(0)).current;
+  const subtitleAnim = useRef(new Animated.Value(0)).current;
+  const imageAnim = useRef(new Animated.Value(0)).current;
+  const buttonAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // If user is already authenticated, redirect to main app
@@ -34,13 +37,35 @@ export default function WelcomeScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      // Animate the rotation when screen is focused
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }).start();
-    }, [rotateAnim])
+      // Duolingo-style staggered entrance animations (no fade)
+      Animated.sequence([
+        // Title slides in from top
+        Animated.timing(titleAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        // Subtitle slides up
+        Animated.timing(subtitleAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        // Image bounces in
+        Animated.spring(imageAnim, {
+          toValue: 1,
+          tension: 100,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        // Buttons slide up
+        Animated.timing(buttonAnim, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, [titleAnim, subtitleAnim, imageAnim, buttonAnim])
   );
 
   const handleGetStarted = () => {
@@ -52,195 +77,206 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <GeneralStatusBarColor backgroundColor="#8B4513" barStyle="light-content" />
-      {/* Background gradient */}
-      <LinearGradient
-        colors={['#8B4513', '#D2691E', '#CD853F']}
-        style={styles.backgroundGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-
-      {/* Wood texture overlay */}
-      <View style={styles.woodTexture} />
-
+    <View style={styles.container}>
+      <GeneralStatusBarColor backgroundColor="#FFFFFF" barStyle="dark-content" />
+      
       {/* Content */}
       <View style={styles.content}>
-        {/* Logo and title section */}
-        {/* <View style={styles.headerSection}>
-          <View style={styles.logoContainer}>
-            <IconSymbol name="hammer.fill" size={60} color="white" />
-          </View>
-          <Text style={styles.title}>Wood Craft</Text>
-          <Text style={styles.subtitle}>Master the art of woodworking</Text>
-        </View> */}
+        {/* Header section with brand and title */}
+        <View style={styles.headerSection}>
+          <Animated.View 
+            style={[
+              styles.titleContainer,
+              {
+                transform: [{
+                  translateY: titleAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-60, 0]
+                  })
+                }]
+              }
+            ]}
+          >
+            <Text style={styles.mainTitle}>Wood Craft</Text>
+            <Text style={styles.subtitle}>Master the art of woodworking</Text>
+          </Animated.View>
+        </View>
 
-        {/* Features section */}
-        {/* <View style={styles.featuresSection}>
-          <View style={styles.featureItem}>
-            <IconSymbol name="star.fill" size={24} color="white" />
-            <Text style={styles.featureText}>Learn step by step</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <IconSymbol name="flame.fill" size={24} color="white" />
-            <Text style={styles.featureText}>Build your streak</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <IconSymbol name="trophy.fill" size={24} color="white" />
-            <Text style={styles.featureText}>Earn achievements</Text>
-          </View>
-        </View> */}
-
-        {/* Action buttons */}
-
-        {/* Footer */}
-        <View style={{ justifyContent: 'space-between', flex: 1 }}>
-       
-          {/* Header section with brand and title */}
-          <View style={styles.headerSection}>
-            <View style={styles.brandContainer}>
-              <Animated.Text 
-                style={[
-                  styles.brandText,
-                  {
-                    transform: [{
-                      rotate: rotateAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '270deg']
-                      })
-                    }]
-                  }
-                ]}
-              >
-                Learn Craft
-              </Animated.Text>
-              <View style={styles.verticalSeparator} />
-              <View style={styles.titleContainer}>
-                <Text style={styles.mainTitle}>Wood Craft</Text>
-                <Text style={styles.mainTitle}>in your</Text>
-                <Text style={styles.mainTitle}>style</Text>
-              </View>
+        {/* Hero image section */}
+        <Animated.View 
+          style={[
+            styles.imageSection,
+            {
+              transform: [
+                {
+                  scale: imageAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.7, 1]
+                  })
+                },
+                {
+                  translateY: imageAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [40, 0]
+                  })
+                }
+              ]
+            }]
+          }
+        >
+          <View style={styles.imageContainer}>
+            <View style={styles.imageBackground} />
+            <View style={styles.imagePlaceholder}>
+              <Image source={require('../assets/images/chair.png')} style={styles.imageIcon} />
             </View>
           </View>
+        </Animated.View>
 
-          <Image resizeMode='contain' style={{ height: RPH(60), width: RPW(100) }} source={require('../assets/images/chairWithLamp.png')} />
-          <View style={styles.actionSection}>
-            <Button
-              title="Get Started"
-              onPress={handleGetStarted}
-              variant="primary"
-              size="large"
-              icon="arrow.right"
-              style={styles.primaryButton}
-              textStyle={{ color: '#8B4513' }}
-            />
+        {/* Action buttons */}
+        <Animated.View 
+          style={[
+            styles.actionSection,
+            {
+              transform: [{
+                translateY: buttonAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [60, 0]
+                })
+              }]
+            }]
+          }
+        >
+          <Button
+            title="Get Started"
+            onPress={handleGetStarted}
+            variant="primary"
+            size="large"
+            style={styles.primaryButton}
+          />
 
-            <Button
-              title="I already have an account"
-              onPress={handleLogin}
-              variant="ghost"
-              size="medium"
-              style={styles.secondaryButton}
-              textStyle={{ color: '#FFFFFF' }}
-            />
-          </View>
-          {/* <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            By continuing, you agree to our Terms & Privacy Policy
-          </Text>
-        </View> */}
-        </View>
+          <Button
+            title="I already have an account"
+            onPress={handleLogin}
+            variant="ghost"
+            size="medium"
+            style={styles.secondaryButton}
+          />
+        </Animated.View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  backgroundGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  woodTexture: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(139, 69, 19, 0.1)',
+    backgroundColor: '#FFFFFF',
   },
   content: {
     flex: 1,
     justifyContent: 'space-between',
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: 80, // More top space like Duolingo
     paddingBottom: 40,
   },
   headerSection: {
     width: '100%',
     alignItems: 'center',
-    // marginTop: 40,
-    // position: 'absolute',
-    // left: 200
-    top: -20
+    paddingTop: 40, // Space from top
   },
-  logoContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
+  titleContainer: {
     alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    marginBottom: 40, // More space between title and image like Duolingo
   },
-  title: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 12,
+  mainTitle: {
+    fontSize: 52, // Perfect Duolingo title size
+    fontWeight: '900', // Extra bold like Duolingo
+    color: '#000000', // Pure black for maximum contrast
     textAlign: 'center',
-    letterSpacing: -1,
+    marginBottom: 16, // Perfect spacing between title and subtitle
+    fontFamily: FontFamilies.featherBold,
+    letterSpacing: -0.5, // Slight negative letter spacing for modern feel
+    lineHeight: 58, // Tight line height for modern look
   },
   subtitle: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 20, // Larger subtitle size like Duolingo
+    color: '#666666', // Dark gray for subtitle
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 28, // Comfortable reading line height
+    fontFamily: FontFamilies.dinRounded,
+    fontWeight: '400', // Regular weight
+    opacity: 0.9, // Slight transparency like Duolingo
   },
-  featuresSection: {
+  imageSection: {
     alignItems: 'center',
-    gap: 20,
+    marginTop: 20,
+    flex: 1, // Take remaining space
+    justifyContent: 'center', // Center the image vertically
   },
-  featureItem: {
-    flexDirection: 'row',
+  imageContainer: {
+    width: width * 1.3, // Slightly larger for better image visibility
+    height: width * 1.3,
+    borderRadius: 28, // More rounded corners for modern look
+    overflow: 'hidden',
+    // backgroundColor: '#F8F9FA', // Light gray background
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08, // Very subtle shadow like Duolingo
+    shadowRadius: 20,
+    elevation: 10,
+    // borderWidth: 1, // Subtle border for definition
+    borderColor: '#E9ECEF',
   },
-  featureText: {
-    fontSize: 18,
-    color: 'white',
-    fontWeight: '500',
+  imageBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    // backgroundColor: '#F8F9FA', // Match container background
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent', // Transparent to show image clearly
+    borderRadius: 28,
+  },
+  imageIcon: {
+    width: '85%', // Slightly larger for better visibility
+    height: '85%',
+    resizeMode: 'contain',
   },
   actionSection: {
-    gap: 16,
+    gap: 20, // More space between buttons like Duolingo
+    paddingBottom: 20, // Bottom padding
   },
   primaryButton: {
-    minWidth: 200,
-    backgroundColor: 'white',
+    minWidth: 280, // Wider button like Duolingo
+    height: 56, // Perfect Duolingo button height
+    backgroundColor: '#58CC02', // Duolingo green
+    borderRadius: 16, // Perfect rounded corners like Duolingo
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#58CC02',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, // Subtle shadow like Duolingo
+    shadowRadius: 8,
+    elevation: 4,
   },
   secondaryButton: {
-    minWidth: 200,
+    minWidth: 280, // Same width as primary button
+    height: 56, // Same height for consistency
+    borderRadius: 16, // Same border radius
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2, // Border for ghost button
+    borderColor: '#E5E5E5', // Light border color
   },
   footer: {
     alignItems: 'center',
@@ -250,47 +286,5 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.6)',
     textAlign: 'center',
     lineHeight: 20,
-  },
-  brandContainer: {
-    flexDirection: 'row',
-  },
-  brandText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    marginRight: 15,
-    marginTop: 10,
-    // width: 20,
-    textAlign: 'center',
-    letterSpacing: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.7,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  verticalSeparator: {
-    width: 1,
-    height: '100%',
-    backgroundColor: '#fff',
-    marginHorizontal: 15,
-    marginTop: 5,
-    left: -110
-  },
-  titleContainer: {
-    left: -106,
-  },
-  mainTitle: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: 'white',
-    textAlign: 'left',
-    marginBottom: 2,
-    letterSpacing: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.7,
-    shadowRadius: 4,
-    elevation: 4,
   },
 });

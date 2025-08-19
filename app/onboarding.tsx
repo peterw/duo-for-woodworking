@@ -1,17 +1,20 @@
 import GeneralStatusBarColor from '@/components/GeneralStatusBarColor';
 import { Button } from '@/components/ui/Button';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Colors } from '@/constants/DesignSystem';
+import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { firestoreService } from '@/services/firestoreService';
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores';
-import { RPH, RPW } from '@/utils/utils';
+import { RPW } from '@/utils/utils';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
-  Image,
+  Easing,
   Platform,
   ScrollView,
   StyleSheet,
@@ -21,6 +24,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 const { width, height } = Dimensions.get('window');
 
 interface OnboardingSlide {
@@ -29,105 +33,126 @@ interface OnboardingSlide {
   title: string;
   subtitle: string;
   icon: string;
+  color: string;
 }
 
 const onboardingSlides: OnboardingSlide[] = [
   {
     id: 1,
     type: 'welcome',
-    title: 'Welcome to Wood Craft',
-    subtitle: 'Your journey to becoming a master woodworker starts here. Learn essential skills, build amazing projects, and join a community of craftsmen.',
+    title: 'Hi there! I\'m Woody!',
+    subtitle: 'Just **7 quick questions** before we start your first woodworking lesson!',
     icon: 'hammer.fill',
+    color: '#58cc02', // Exact Duolingo green
   },
   {
     id: 2,
     type: 'name',
     title: 'What should we call you?',
-    subtitle: 'Let us know your name so we can personalize your experience.',
+    subtitle: 'Let\'s get personal! I\'ll remember your name for our woodworking journey together.',
     icon: 'person.fill',
+    color: '#1cb0f6', // Duolingo blue from light mode
   },
   {
     id: 3,
     type: 'username',
-    title: 'Choose your username',
-    subtitle: 'This will be your unique identifier in the Wood Craft community.',
+    title: 'Choose your woodworker name',
+    subtitle: 'This will be your unique identity in our woodworking community. Make it count!',
     icon: 'at',
+    color: '#ff9600', // Duolingo orange from light mode
   },
   {
     id: 4,
     type: 'goals',
-    title: 'What do you want to achieve?',
-    subtitle: 'Choose your primary goal to help us personalize your learning experience.',
+    title: 'What do you want to build?',
+    subtitle: 'Choose your primary goal so I can create the perfect learning path for you.',
     icon: 'star.fill',
+    color: '#ff9600', // Duolingo orange from light mode
   },
   {
     id: 5,
     type: 'experience',
-    title: 'What\'s your experience level?',
-    subtitle: 'This helps us create the perfect learning path for you.',
+    title: 'What\'s your woodworking level?',
+    subtitle: 'Don\'t worry - there\'s no wrong answer! This helps me start you in the right place.',
     icon: 'trophy.fill',
+    color: '#58cc02', // Exact Duolingo green
   },
   {
     id: 6,
     type: 'time',
-    title: 'How much time can you dedicate?',
-    subtitle: 'We\'ll adjust your daily goals based on your available time.',
+    title: 'How much time can you practice?',
+    subtitle: 'I\'ll adjust your daily goals to fit your schedule perfectly.',
     icon: 'clock.fill',
+    color: '#1cb0f6', // Duolingo blue from light mode
   },
   {
     id: 7,
     type: 'motivation',
-    title: 'What motivates you most?',
-    subtitle: 'Understanding your motivation helps us keep you engaged.',
+    title: 'What gets you excited?',
+    subtitle: 'Understanding your motivation helps me keep you inspired and engaged.',
     icon: 'flame.fill',
+    color: '#ff9600', // Duolingo orange from light mode
   },
   {
     id: 8,
     type: 'complete',
     title: 'You\'re all set!',
-    subtitle: 'Your personalized woodworking journey is ready to begin.',
+    subtitle: 'Your personalized woodworking journey is ready to begin. Let\'s build something amazing!',
     icon: 'checkmark.circle.fill',
+    color: '#58cc02', // Exact Duolingo green
   },
 ];
 
 const goals = [
-  'Learn basic woodworking skills',
   'Build furniture for my home',
+  'Create artistic wooden pieces',
+  'Learn basic woodworking skills',
   'Start a woodworking business',
-  'Create artistic pieces',
-  'Learn advanced techniques',
-  'Teach others woodworking',
+  'Make gifts for friends & family',
+  'Restore antique furniture',
 ];
 
 const experienceLevels = [
-  'Complete beginner',
-  'Some experience',
-  'Advanced',
+  'Complete beginner - never touched wood',
+  'Some experience - made a few things',
+  'Intermediate - comfortable with tools',
+  'Advanced - ready for complex projects',
 ];
 
 const timeOptions = [
-  '15 minutes daily',
-  '30 minutes daily',
-  '1 hour daily',
-  '2+ hours daily',
-  'Weekends only',
+  '15 minutes daily - casual learner',
+  '30 minutes daily - regular practice',
+  '1 hour daily - serious commitment',
+  '2+ hours daily - intense learning',
+  'Weekends only - weekend warrior',
 ];
 
 const motivations = [
-  'Creative expression',
-  'Practical skills',
-  'Stress relief',
-  'Building community',
-  'Financial opportunity',
-  'Personal achievement',
+  'Creating something with my hands',
+  'Building practical things for my home',
+  'Learning a valuable skill',
+  'Finding a creative outlet',
+  'Saving money on furniture',
+  'Building a business',
+  'Making unique gifts',
+  'Preserving traditional crafts',
 ];
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const colorScheme = useColorScheme();
   const { setOnboardingCompleted } = useAppStore();
   const { setOnboardingData } = useOnboardingStore();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, appleSignUp } = useAuthStore();
+  
+  // Username validation state
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [usernameError, setUsernameError] = useState('');
+  const [isUsernameAvailable, setIsUsernameAvailable] = useState(false);
+  
+  // Check if user came from Apple Sign In
+  const isFromAppleSignIn = params.fromAppleSignIn === 'true';
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -135,6 +160,7 @@ export default function OnboardingScreen() {
       router.replace('/(tabs)');
     }
   }, [isAuthenticated, user, router]);
+
   const [currentStep, setCurrentStep] = useState(0);
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
@@ -151,6 +177,7 @@ export default function OnboardingScreen() {
   const subtitleAnim = useRef(new Animated.Value(0)).current;
   const contentAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const iconAnim = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Initialize animations when step changes
@@ -162,59 +189,98 @@ export default function OnboardingScreen() {
     titleAnim.setValue(0);
     subtitleAnim.setValue(0);
     contentAnim.setValue(0);
+    iconAnim.setValue(0);
 
-    // Animate progress bar
+    // Calculate accurate progress percentage
+    // We have 8 steps (0-7), but step 0 is welcome (0% progress)
+    // Steps 1-6 are content steps, step 7 is complete (100% progress)
+    let progressValue = 0;
+    let currentContentStep = 0;
+    let contentSteps = 0;
+    
+    if (currentStep === 0) {
+      // Welcome step: 0% progress
+      progressValue = 0;
+    } else if (currentStep >= onboardingSlides.length - 2) {
+      // Last content step (motivation) and complete step: 100% progress
+      progressValue = 100;
+    } else {
+      // Content steps: Calculate progress from 1 to 5 (excluding welcome and complete)
+      // Step 1 (name) = 20%, Step 2 (username) = 40%, etc.
+      contentSteps = onboardingSlides.length - 3; // Exclude welcome, last content step, and complete
+      currentContentStep = currentStep; // currentStep is already 1-based for content
+      progressValue = (currentContentStep / contentSteps) * 100;
+    }
+
+    // Debug progress calculation
+    console.log(`Step ${currentStep}: Progress = ${progressValue.toFixed(1)}% (${currentContentStep}/${contentSteps})`);
+    console.log(`Progress bar width will be: ${progressValue}% of 200px = ${(progressValue * 200 / 100).toFixed(1)}px`);
+
+    // Animate progress bar with Duolingo-style easing
     Animated.timing(progressAnim, {
-      toValue: ((currentStep + 1) / onboardingSlides.length) * 100,
-      duration: 800,
+      toValue: progressValue,
+      duration: 600, // Duolingo uses 600ms for smooth progress
       useNativeDriver: false,
+      easing: Easing.out(Easing.cubic), // Smooth cubic easing like Duolingo
     }).start();
 
-    // Animate in new content with different timing for welcome slide
+    // Duolingo-style entrance animations
     if (currentStep === 0) {
-      // Welcome slide has special entrance animation
+      // Welcome slide has special entrance animation like Duolingo
       Animated.sequence([
+        // Title slides in from left with bounce
         Animated.timing(titleAnim, {
+          toValue: 1,
+          duration: 700, // Duolingo uses longer duration for welcome
+          useNativeDriver: true,
+          easing: Easing.out(Easing.back(1.2)), // Bounce effect like Duolingo
+        }),
+        // Subtitle fades in with slight delay
+        Animated.timing(subtitleAnim, {
           toValue: 1,
           duration: 500,
           useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
         }),
-        Animated.timing(subtitleAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
+        // Content slides up smoothly
         Animated.timing(contentAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 600,
           useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
         }),
       ]).start();
     } else {
-      // Other slides have parallel animations
+      // Other slides have Duolingo-style parallel animations
       Animated.parallel([
+        // Title slides in from left
         Animated.timing(titleAnim, {
           toValue: 1,
-          duration: 500,
+          duration: 600,
           useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
         }),
+        // Subtitle slides in with slight delay
         Animated.timing(subtitleAnim, {
           toValue: 1,
-          duration: 500,
-          delay: 150,
+          duration: 600,
+          delay: 150, // Staggered entrance like Duolingo
           useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
         }),
+        // Content slides up with more delay
         Animated.timing(contentAnim, {
           toValue: 1,
-          duration: 500,
-          delay: 300,
+          duration: 600,
+          delay: 300, // Progressive reveal like Duolingo
           useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
         }),
       ]).start();
     }
-  }, [currentStep, fadeAnim, slideAnim, scaleAnim, titleAnim, subtitleAnim, contentAnim, progressAnim]);
+  }, [currentStep, fadeAnim, slideAnim, scaleAnim, titleAnim, subtitleAnim, contentAnim, progressAnim, iconAnim]);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     // Safety check to ensure currentStep is within bounds
     if (currentStep >= onboardingSlides.length) {
       console.error('Current step out of bounds:', currentStep, 'onboardingSlides length:', onboardingSlides.length);
@@ -233,11 +299,13 @@ export default function OnboardingScreen() {
         setOnboardingData({ goal: selectedGoal });
       } else if (currentSlide.type === 'experience') {
         let experience: 'beginner' | 'intermediate' | 'advanced';
-        if (selectedExperience === 'Complete beginner') {
+        if (selectedExperience === 'Complete beginner - never touched wood') {
           experience = 'beginner';
-        } else if (selectedExperience === 'Some experience') {
+        } else if (selectedExperience === 'Some experience - made a few things') {
           experience = 'intermediate';
-        } else if (selectedExperience === 'Advanced') {
+        } else if (selectedExperience === 'Intermediate - comfortable with tools') {
+          experience = 'intermediate';
+        } else if (selectedExperience === 'Advanced - ready for complex projects') {
           experience = 'advanced';
         } else {
           experience = 'beginner'; // fallback
@@ -249,31 +317,42 @@ export default function OnboardingScreen() {
         setOnboardingData({ motivation: selectedMotivation });
       }
 
-      // Add button press animation
+      // Duolingo-style button press animation with haptics
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Medium impact like Duolingo
+      } else if (Platform.OS === 'android') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      // Button press animation like Duolingo
       Animated.sequence([
         Animated.timing(scaleAnim, {
           toValue: 0.95,
-          duration: 100,
+          duration: 80, // Quick press down
           useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
         }),
         Animated.timing(scaleAnim, {
           toValue: 1,
-          duration: 100,
+          duration: 120, // Smooth release
           useNativeDriver: true,
+          easing: Easing.out(Easing.back(1.5)), // Slight bounce like Duolingo
         }),
       ]).start();
 
-      // Animate out current content
+      // Duolingo-style slide transition
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
+          easing: Easing.inOut(Easing.cubic),
         }),
         Animated.timing(slideAnim, {
-          toValue: -50,
+          toValue: -100, // Slide out to left like Duolingo
           duration: 300,
           useNativeDriver: true,
+          easing: Easing.inOut(Easing.cubic),
         }),
       ]).start(() => {
         // Move to next step
@@ -283,41 +362,190 @@ export default function OnboardingScreen() {
       // Save final step data
       setOnboardingData({ motivation: selectedMotivation });
       
-      // Complete onboarding and go to signup
+      // Success haptics for completion
+      if (Platform.OS === 'ios') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Success haptic like Duolingo
+      } else if (Platform.OS === 'android') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); // Heavy impact for completion
+      }
+      
+      // Complete onboarding
       setOnboardingCompleted();
-      router.replace('/signup');
+      
+      if (isFromAppleSignIn) {
+        // For Apple Sign In users, complete the signup process
+        try {
+          const userData = {
+            fullName: fullName,
+            username: username,
+            goal: selectedGoal,
+            experience: selectedExperience as 'beginner' | 'intermediate' | 'advanced',
+            timeCommitment: selectedTime,
+            motivation: selectedMotivation,
+          };
+          
+          const success = await appleSignUp(userData);
+          if (success) {
+            // User will be automatically redirected to main app
+            console.log('Apple Sign Up completed successfully');
+          } else {
+            Alert.alert('Sign Up Error', 'Failed to complete sign up. Please try again.');
+          }
+        } catch (error) {
+          console.error('Apple Sign Up error:', error);
+          Alert.alert('Sign Up Error', 'An unexpected error occurred. Please try again.');
+        }
+      } else {
+        // For regular users, go to signup
+        router.replace('/signup');
+      }
     }
   };
 
   const handleBack = () => {
     if (currentStep > 0) {
+      // Back button haptics like Duolingo
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Light impact for back
+      } else if (Platform.OS === 'android') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+
+      // Duolingo-style back transition
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
+          easing: Easing.inOut(Easing.cubic),
         }),
         Animated.timing(slideAnim, {
-          toValue: 50,
+          toValue: 100, // Slide out to right like Duolingo
           duration: 300,
           useNativeDriver: true,
+          easing: Easing.inOut(Easing.cubic),
         }),
       ]).start(() => {
         setCurrentStep(prev => prev - 1);
       });
+    } else {
+      // If on first step, go back to welcome screen
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } else if (Platform.OS === 'android') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      
+      router.back(); // Navigate back to previous screen
     }
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     setOnboardingCompleted();
-    router.replace('/signup');
+    
+    if (isFromAppleSignIn) {
+      // For Apple Sign In users, complete with default values
+      try {
+        const userData = {
+          fullName: fullName || 'Apple User',
+          username: username || `user_${Date.now().toString(36)}`,
+          goal: selectedGoal || 'Learning new skills',
+          experience: (selectedExperience as 'beginner' | 'intermediate' | 'advanced') || 'beginner',
+          timeCommitment: selectedTime || 'A few hours per week',
+          motivation: selectedMotivation || 'Personal growth',
+        };
+        
+        const success = await appleSignUp(userData);
+        if (success) {
+          console.log('Apple Sign Up completed successfully (skipped)');
+        } else {
+          Alert.alert('Sign Up Error', 'Failed to complete sign up. Please try again.');
+        }
+      } catch (error) {
+        console.error('Apple Sign Up error:', error);
+        Alert.alert('Sign Up Error', 'An unexpected error occurred. Please try again.');
+      }
+    } else {
+      // For regular users, go to signup
+      router.replace('/signup');
+    }
   };
+
+  // Check username availability
+  const checkUsernameAvailability = async (usernameToCheck: string) => {
+    if (!usernameToCheck || usernameToCheck.length < 3) {
+      setUsernameError('');
+      setIsUsernameAvailable(false);
+      return;
+    }
+
+    // Basic validation
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!usernameRegex.test(usernameToCheck)) {
+      setUsernameError('Username can only contain letters, numbers, and underscores');
+      setIsUsernameAvailable(false);
+      return;
+    }
+
+    setIsCheckingUsername(true);
+    setUsernameError('');
+
+    try {
+      const isAvailable = await firestoreService.isUsernameAvailable(usernameToCheck);
+      setIsUsernameAvailable(isAvailable);
+      
+      if (!isAvailable) {
+        setUsernameError('Username is already taken. Please choose a different one.');
+      } else {
+        setUsernameError('');
+      }
+    } catch (error) {
+      console.error('Error checking username availability:', error);
+      setUsernameError('Unable to check username availability. Please try again.');
+      setIsUsernameAvailable(false);
+    } finally {
+      setIsCheckingUsername(false);
+    }
+  };
+
+  // Debounced username check
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (username && username.length >= 3) {
+        checkUsernameAvailability(username);
+      } else {
+        setUsernameError('');
+        setIsUsernameAvailable(false);
+      }
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timeoutId);
+  }, [username]);
 
   const handleOptionSelect = (option: string, type: string) => {
-    // Add haptic feedback for selection
+    // Duolingo-style selection haptics
     if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Light impact for selection
+    } else if (Platform.OS === 'android') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+
+    // Duolingo-style selection animation
+    const selectedAnim = new Animated.Value(1);
+    Animated.sequence([
+      Animated.timing(selectedAnim, {
+        toValue: 1.05, // Slight scale up
+        duration: 100,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+      Animated.timing(selectedAnim, {
+        toValue: 1, // Return to normal
+        duration: 100,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.back(1.2)), // Slight bounce
+      }),
+    ]).start();
 
     switch (type) {
       case 'goal':
@@ -335,60 +563,68 @@ export default function OnboardingScreen() {
     }
   };
 
-  const renderWelcomeSlide = () => (
-    <Animated.View 
-      style={[
-        styles.welcomeContainer,
-        {
-          opacity: fadeAnim,
-          transform: [
-            { translateY: slideAnim },
-            { scale: scaleAnim }
-          ]
-        }
-      ]}
-    >
-      <View style={styles.welcomeContent}>
-
-        <Animated.Text 
-          style={[
-            styles.welcomeTitle,
-            {
-              opacity: titleAnim,
-              transform: [{ translateY: Animated.multiply(titleAnim, 30) }]
-            }
-          ]}
-        >
-          {`Welcome to\nWood Craft`}
-        </Animated.Text>
-        <Animated.View
-          style={{
-            opacity: subtitleAnim,
-            transform: [{ translateY: Animated.multiply(subtitleAnim, 20) }]
-          }}
-        >
-          <Image resizeMode='contain' source={require('@/assets/images/chair.png')} style={styles.welcomeImage} />
-        </Animated.View>
-      </View>
-      
+  const renderWelcomeSlide = () => {
+    const currentSlide = onboardingSlides[currentStep];
+    
+    return (
       <Animated.View 
         style={[
-          styles.welcomeActions,
+          styles.welcomeContainer,
           {
-            opacity: contentAnim,
-            transform: [{ translateY: Animated.multiply(contentAnim, 20) }]
+            opacity: fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ]
           }
         ]}
       >
-        <Button
-          title="Continue"
-          onPress={handleNext}
-          size="large"
-          style={styles.welcomeButton}
-        />
+        <View style={styles.welcomeContent}>
+          <Animated.Text 
+            style={[
+              styles.welcomeTitle,
+              {
+                opacity: titleAnim,
+                transform: [{ translateY: Animated.multiply(titleAnim, 30) }]
+              }
+            ]}
+          >
+            {currentSlide.title}
+          </Animated.Text>
+
+          <Animated.Text
+            style={[
+              styles.welcomeSubtitle,
+              {
+                opacity: subtitleAnim,
+                transform: [{ translateY: Animated.multiply(subtitleAnim, 20) }]
+              }
+            ]}
+          >
+            {currentSlide.subtitle}
+          </Animated.Text>
+        </View>
+        
+        <Animated.View 
+          style={[
+            styles.bottomButtonContainer,
+            {
+              opacity: contentAnim,
+              transform: [{ translateY: Animated.multiply(contentAnim, 20) }]
+            }
+          ]}
+        >
+          <Button
+            title="Continue"
+            onPress={handleNext}
+            variant="primary"
+            size="large"
+            style={styles.primaryButton}
+          />
+        </Animated.View>
       </Animated.View>
-    </Animated.View>
-  );
+    );
+  };
 
   const renderNameSlide = () => (
     <Animated.View 
@@ -403,20 +639,12 @@ export default function OnboardingScreen() {
         }
       ]}
     >
-      <Animated.View 
-        style={[
-          styles.slideHeader,
-          {
-            opacity: titleAnim,
-            transform: [{ translateY: Animated.multiply(titleAnim, 30) }]
-          }
-        ]}
-      >
-        <Text style={styles.slideTitle}>What should we call you?</Text>
-        <Text style={styles.slideSubtitle}>
-          Let us know your name so we can personalize your experience.
-        </Text>
-      </Animated.View>
+      {renderSlideHeader(
+        'What should we call you?',
+        'Let\'s get personal! I\'ll remember your name for our woodworking journey together.',
+        'person.fill',
+        Colors.secondary
+      )}
       
       <Animated.View 
         style={[
@@ -433,13 +661,13 @@ export default function OnboardingScreen() {
           value={fullName}
           onChangeText={setFullName}
           placeholder="Enter your full name"
-          placeholderTextColor="rgba(255, 255, 255, 0.5)"
+          placeholderTextColor={Colors.gray400}
         />
       </Animated.View>
       
       <Animated.View 
         style={[
-          styles.slideFooter,
+          styles.bottomButtonContainer,
           {
             opacity: contentAnim,
             transform: [{ translateY: Animated.multiply(contentAnim, 20) }]
@@ -450,8 +678,9 @@ export default function OnboardingScreen() {
           title="Continue"
           onPress={handleNext}
           disabled={!fullName.trim()}
+          variant="primary"
           size="large"
-          style={styles.continueButton}
+          style={styles.primaryButton}
         />
       </Animated.View>
     </Animated.View>
@@ -470,20 +699,12 @@ export default function OnboardingScreen() {
         }
       ]}
     >
-      <Animated.View 
-        style={[
-          styles.slideHeader,
-          {
-            opacity: titleAnim,
-            transform: [{ translateY: Animated.multiply(titleAnim, 30) }]
-          }
-        ]}
-      >
-        <Text style={styles.slideTitle}>Choose your username</Text>
-        <Text style={styles.slideSubtitle}>
-          This will be your unique identifier in the Wood Craft community.
-        </Text>
-      </Animated.View>
+      {renderSlideHeader(
+        'Choose your woodworker name',
+        'This will be your unique identity in our woodworking community. Make it count!',
+        'at',
+        Colors.info
+      )}
       
       <Animated.View 
         style={[
@@ -495,22 +716,44 @@ export default function OnboardingScreen() {
         ]}
       >
         <Text style={styles.inputLabel}>Username</Text>
-        <TextInput
-          style={styles.textInput}
-          value={username}
-          onChangeText={setUsername}
-          placeholder="Enter username"
-          placeholderTextColor="rgba(255, 255, 255, 0.5)"
-          autoCapitalize="none"
-        />
-        <Text style={styles.inputHelper}>
-          Username must be 3-20 characters, letters and numbers only
-        </Text>
+        <View style={styles.usernameInputContainer}>
+          <TextInput
+            style={[
+              styles.textInput,
+              usernameError ? styles.textInputError : null,
+              isUsernameAvailable ? styles.textInputSuccess : null
+            ]}
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Enter username"
+            placeholderTextColor={Colors.gray400}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {isCheckingUsername && (
+            <View style={styles.checkingIndicator}>
+              <Text style={styles.checkingText}>Checking...</Text>
+            </View>
+          )}
+          {isUsernameAvailable && !isCheckingUsername && (
+            <View style={styles.availableIndicator}>
+              <Text style={styles.availableText}>✓ Available</Text>
+            </View>
+          )}
+        </View>
+        
+        {usernameError ? (
+          <Text style={styles.inputError}>{usernameError}</Text>
+        ) : (
+          <Text style={styles.inputHelper}>
+            Username must be 3-20 characters, letters, numbers, and underscores only
+          </Text>
+        )}
       </Animated.View>
       
       <Animated.View 
         style={[
-          styles.slideFooter,
+          styles.bottomButtonContainer,
           {
             opacity: contentAnim,
             transform: [{ translateY: Animated.multiply(contentAnim, 20) }]
@@ -520,9 +763,10 @@ export default function OnboardingScreen() {
         <Button
           title="Continue"
           onPress={handleNext}
-          disabled={!username.trim() || username.length < 3}
+          disabled={!username.trim() || username.length < 3 || !isUsernameAvailable || !!usernameError}
+          variant="primary"
           size="large"
-          style={styles.continueButton}
+          style={styles.primaryButton}
         />
       </Animated.View>
     </Animated.View>
@@ -541,20 +785,12 @@ export default function OnboardingScreen() {
         }
       ]}
     >
-      <Animated.View 
-        style={[
-          styles.slideHeader,
-          {
-            opacity: titleAnim,
-            transform: [{ translateY: Animated.multiply(titleAnim, 30) }]
-          }
-        ]}
-      >
-        <Text style={styles.slideTitle}>What do you want to achieve?</Text>
-        <Text style={styles.slideSubtitle}>
-          Choose your primary goal to help us personalize your learning experience.
-        </Text>
-      </Animated.View>
+      {renderSlideHeader(
+        'What do you want to build?',
+        'Choose your primary goal so I can create the perfect learning path for you.',
+        'star.fill',
+        Colors.warning
+      )}
       
       <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
         {goals.map((goal, index) => (
@@ -563,8 +799,18 @@ export default function OnboardingScreen() {
             style={{
               opacity: contentAnim,
               transform: [
-                { translateY: Animated.multiply(contentAnim, 20 + index * 10) },
-                { scale: contentAnim }
+                { 
+                  translateY: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [50 + index * 20, 0] // Staggered entrance like Duolingo
+                  })
+                },
+                { 
+                  scale: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.8, 1] // Scale up entrance
+                  })
+                }
               ]
             }}
           >
@@ -589,7 +835,7 @@ export default function OnboardingScreen() {
       
       <Animated.View 
         style={[
-          styles.slideFooter,
+          styles.bottomButtonContainer,
           {
             opacity: contentAnim,
             transform: [{ translateY: Animated.multiply(contentAnim, 20) }]
@@ -600,8 +846,9 @@ export default function OnboardingScreen() {
           title="Continue"
           onPress={handleNext}
           disabled={!selectedGoal}
+          variant="primary"
           size="large"
-          style={styles.continueButton}
+          style={styles.primaryButton}
         />
       </Animated.View>
     </Animated.View>
@@ -620,20 +867,12 @@ export default function OnboardingScreen() {
         }
       ]}
     >
-      <Animated.View 
-        style={[
-          styles.slideHeader,
-          {
-            opacity: titleAnim,
-            transform: [{ translateY: Animated.multiply(titleAnim, 30) }]
-          }
-        ]}
-      >
-        <Text style={styles.slideTitle}>What's your experience level?</Text>
-        <Text style={styles.slideSubtitle}>
-          This helps us create the perfect learning path for you.
-        </Text>
-      </Animated.View>
+      {renderSlideHeader(
+        'What\'s your woodworking level?',
+        'Don\'t worry - there\'s no wrong answer! This helps me start you in the right place.',
+        'trophy.fill',
+        Colors.success
+      )}
       
       <View style={styles.optionsContainer}>
         {experienceLevels.map((level, index) => (
@@ -642,8 +881,18 @@ export default function OnboardingScreen() {
             style={{
               opacity: contentAnim,
               transform: [
-                { translateY: Animated.multiply(contentAnim, 20 + index * 10) },
-                { scale: contentAnim }
+                { 
+                  translateY: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [50 + index * 20, 0] // Staggered entrance like Duolingo
+                  })
+                },
+                { 
+                  scale: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.8, 1] // Scale up entrance
+                  })
+                }
               ]
             }}
           >
@@ -668,7 +917,7 @@ export default function OnboardingScreen() {
       
       <Animated.View 
         style={[
-          styles.slideFooter,
+          styles.bottomButtonContainer,
           {
             opacity: contentAnim,
             transform: [{ translateY: Animated.multiply(contentAnim, 20) }]
@@ -679,8 +928,9 @@ export default function OnboardingScreen() {
           title="Continue"
           onPress={handleNext}
           disabled={!selectedExperience}
+          variant="primary"
           size="large"
-          style={styles.continueButton}
+          style={styles.primaryButton}
         />
       </Animated.View>
     </Animated.View>
@@ -699,20 +949,12 @@ export default function OnboardingScreen() {
         }
       ]}
     >
-      <Animated.View 
-        style={[
-          styles.slideHeader,
-          {
-            opacity: titleAnim,
-            transform: [{ translateY: Animated.multiply(titleAnim, 30) }]
-          }
-        ]}
-      >
-        <Text style={styles.slideTitle}>How much time can you dedicate?</Text>
-        <Text style={styles.slideSubtitle}>
-          We'll adjust your daily goals based on your available time.
-        </Text>
-      </Animated.View>
+      {renderSlideHeader(
+        'How much time can you practice?',
+        'I\'ll adjust your daily goals to fit your schedule perfectly.',
+        'clock.fill',
+        Colors.primary
+      )}
       
       <View style={styles.optionsContainer}>
         {timeOptions.map((option, index) => (
@@ -721,8 +963,18 @@ export default function OnboardingScreen() {
             style={{
               opacity: contentAnim,
               transform: [
-                { translateY: Animated.multiply(contentAnim, 20 + index * 10) },
-                { scale: contentAnim }
+                { 
+                  translateY: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [50 + index * 20, 0] // Staggered entrance like Duolingo
+                  })
+                },
+                { 
+                  scale: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.8, 1] // Scale up entrance
+                  })
+                }
               ]
             }}
           >
@@ -747,7 +999,7 @@ export default function OnboardingScreen() {
       
       <Animated.View 
         style={[
-          styles.slideFooter,
+          styles.bottomButtonContainer,
           {
             opacity: contentAnim,
             transform: [{ translateY: Animated.multiply(contentAnim, 20) }]
@@ -758,8 +1010,9 @@ export default function OnboardingScreen() {
           title="Continue"
           onPress={handleNext}
           disabled={!selectedTime}
+          variant="primary"
           size="large"
-          style={styles.continueButton}
+          style={styles.primaryButton}
         />
       </Animated.View>
     </Animated.View>
@@ -778,20 +1031,12 @@ export default function OnboardingScreen() {
         }
       ]}
     >
-      <Animated.View 
-        style={[
-          styles.slideHeader,
-          {
-            opacity: titleAnim,
-            transform: [{ translateY: Animated.multiply(titleAnim, 30) }]
-          }
-        ]}
-      >
-        <Text style={styles.slideTitle}>What motivates you most?</Text>
-        <Text style={styles.slideSubtitle}>
-          Understanding your motivation helps us keep you engaged.
-        </Text>
-      </Animated.View>
+      {renderSlideHeader(
+        'What gets you excited?',
+        'Understanding your motivation helps me keep you inspired and engaged.',
+        'flame.fill',
+        Colors.secondary
+      )}
       
       <ScrollView contentContainerStyle={{paddingBottom: 70}} style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
         {motivations.map((motivation, index) => (
@@ -800,8 +1045,18 @@ export default function OnboardingScreen() {
             style={{
               opacity: contentAnim,
               transform: [
-                { translateY: Animated.multiply(contentAnim, 20 + index * 10) },
-                { scale: contentAnim }
+                { 
+                  translateY: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [50 + index * 20, 0] // Staggered entrance like Duolingo
+                  })
+                },
+                { 
+                  scale: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.8, 1] // Scale up entrance
+                  })
+                }
               ]
             }}
           >
@@ -826,7 +1081,7 @@ export default function OnboardingScreen() {
       
       <Animated.View 
         style={[
-          styles.slideFooter,
+          styles.bottomButtonContainer,
           {
             opacity: contentAnim,
             transform: [{ translateY: Animated.multiply(contentAnim, 20) }]
@@ -837,8 +1092,9 @@ export default function OnboardingScreen() {
           title="Continue"
           onPress={handleNext}
           disabled={!selectedMotivation}
+          variant="primary"
           size="large"
-          style={styles.continueButton}
+          style={styles.primaryButton}
         />
       </Animated.View>
     </Animated.View>
@@ -866,17 +1122,6 @@ export default function OnboardingScreen() {
           }
         ]}
       >
-        <Animated.View 
-          style={[
-            styles.iconContainer,
-            {
-              opacity: titleAnim,
-              transform: [{ scale: titleAnim }]
-            }
-          ]}
-        >
-          <IconSymbol name="checkmark.circle.fill" size={100} color="#FFFFFF" />
-        </Animated.View>
         <Animated.Text 
           style={[
             styles.completeTitle,
@@ -897,13 +1142,13 @@ export default function OnboardingScreen() {
             }
           ]}
         >
-          Your personalized woodworking journey is ready to begin.
+          Your personalized woodworking journey is ready to begin. Let's build something amazing!
         </Animated.Text>
       </Animated.View>
       
       <Animated.View 
         style={[
-          styles.completeActions,
+          styles.bottomButtonContainer,
           {
             opacity: contentAnim,
             transform: [{ translateY: Animated.multiply(contentAnim, 20) }]
@@ -913,10 +1158,26 @@ export default function OnboardingScreen() {
         <Button
           title="Start Learning"
           onPress={handleNext}
+          variant="primary"
           size="large"
-          style={styles.startButton}
+          style={styles.primaryButton}
         />
       </Animated.View>
+    </Animated.View>
+  );
+
+  const renderSlideHeader = (title: string, subtitle: string, icon: string, color: string) => (
+    <Animated.View 
+      style={[
+        styles.slideHeader,
+        {
+          opacity: titleAnim,
+          transform: [{ translateY: Animated.multiply(titleAnim, 30) }]
+        }
+      ]}
+    >
+      <Text style={styles.slideTitle}>{title}</Text>
+      <Text style={styles.slideSubtitle}>{subtitle}</Text>
     </Animated.View>
   );
 
@@ -955,15 +1216,29 @@ export default function OnboardingScreen() {
 
   return (
     <View style={styles.container}>
-      <GeneralStatusBarColor backgroundColor="#8B4513" barStyle="light-content" />
-      <LinearGradient
-        colors={['#8B4513', '#D2691E', '#CD853F']}
-        style={styles.backgroundGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+      <GeneralStatusBarColor backgroundColor="#FFFFFF" barStyle="dark-content" />
       
       <SafeAreaView style={styles.safeArea}>
+        {/* Step 1 (Welcome): Only back button */}
+        {currentStep === 0 && (
+          <Animated.View 
+            style={[
+              styles.header,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: Animated.multiply(fadeAnim, 10) }]
+              }
+            ]}
+          >
+            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+              <IconSymbol name="chevron.left" size={24} color="#000000" />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }} />
+            <View style={{ width: 40 }} />
+          </Animated.View>
+        )}
+        
+        {/* Steps 2-8: Back button + progress bar */}
         {currentStep > 0 && (
           <Animated.View 
             style={[
@@ -975,15 +1250,27 @@ export default function OnboardingScreen() {
             ]}
           >
             <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-              <IconSymbol name="chevron.left" size={24} color="#FFFFFF" />
+              <IconSymbol name="chevron.left" size={24} color="#000000" />
             </TouchableOpacity>
-            <View style={styles.progressBarContainer}>
-              <Animated.View 
-                style={[
-                  styles.progressBar, 
-                  { width: progressAnim }
-                ]} 
-              />
+            <View style={styles.progressSection}>
+              {/* Step counter */}
+              {/* <Text style={styles.stepCounter}>
+                Step {currentStep} of {onboardingSlides.length - 2}
+              </Text> */}
+              {/* Progress bar */}
+              <View style={styles.progressBarContainer}>
+                <Animated.View 
+                  style={[
+                    styles.progressBar, 
+                    { 
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 100],
+                        outputRange: [0, 200] // Convert percentage to pixel width
+                      })
+                    }
+                  ]} 
+                />
+              </View>
             </View>
             <View style={{ width: 40 }} />
           </Animated.View>
@@ -998,14 +1285,7 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
-  },
-  backgroundGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    backgroundColor: '#FFFFFF', // Pure white like Duolingo
   },
   safeArea: {
     flex: 1,
@@ -1017,17 +1297,34 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 20,
   },
-  progressBarContainer: {
-    flex: 1,
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  progressSection: {
+    flexDirection: 'column',
+    alignItems: 'center',
     marginLeft: 20,
-    borderRadius: 2,
+  },
+  stepCounter: {
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 8,
+  },
+  progressBarContainer: {
+    width: RPW(70), // Fixed width to ensure light gray background is visible
+    height: 12, // Wider height like Duolingo (increased from 8px)
+    backgroundColor: '#F0F0F0', // Light gray background like Duolingo
+    borderRadius: 6, // Rounded corners to match the new height
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFD700', // Golden yellow like Duolingo
+    borderRadius: 6, // Rounded corners to match container
+    // Add gradient effect like Duolingo
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   backButton: {
     width: 40,
@@ -1036,246 +1333,248 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   
-  // Welcome slide styles
+  // Welcome slide styles - Perfect Duolingo branding
   welcomeContainer: {
     flex: 1,
     justifyContent: 'space-between',
-    // alignItems: 'center',
-    paddingHorizontal: 30,
-    paddingTop: 50,
-    // paddingBottom: 80,
+    paddingHorizontal: 24, // Duolingo standard padding
+    paddingTop: 60, // More top space for better visual balance
+    paddingBottom: 120, // Space for bottom button
   },
   welcomeContent: {
-    alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-  },
-  iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 32,
+    alignItems: 'flex-start', // Left-aligned like Duolingo
+    paddingTop: 40,
   },
   welcomeTitle: {
-    fontSize: 50,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    textAlign: 'left',
-    lineHeight: 56,
-    marginBottom: 24,
-    letterSpacing: -1,
-    textShadowColor: 'rgba(0, 0, 0, 0.7)',
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 8,
-    width:'100%',
-    textTransform:'uppercase',
+    fontFamily: FontFamilies.featherBold,
+    fontSize: 42, // Perfect Duolingo title size
+    lineHeight: 48, // Tight line height for modern look
+    color: '#000000', // Pure black for maximum contrast
+    textAlign: 'left', // Left-aligned like Duolingo
+    marginBottom: 24, // Perfect spacing between title and subtitle
+    letterSpacing: -0.5, // Slight negative letter spacing for modern feel
+    fontWeight: '900', // Extra bold like Duolingo
   },
   welcomeSubtitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    opacity: 0.95,
-    lineHeight: 26,
-    maxWidth: 320,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 18, // Perfect subtitle size
+    lineHeight: 26, // Comfortable reading line height
+    color: '#333333', // Dark gray for subtitle - not pure black
+    textAlign: 'left', // Left-aligned like Duolingo
+    maxWidth: '100%', // Full width for better readability
+    fontWeight: '400', // Regular weight for subtitle
   },
   welcomeActions: {
     width: '100%',
     alignItems: 'center',
+    paddingVertical: 32, // More bottom padding for better balance
+    paddingBottom: 40, // Extra bottom padding for safe area
   },
   welcomeButton: {
-    backgroundColor: '#FFFFFF',
-    minWidth: 200,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    width: '100%',
+    width: '100%', // Full width like Duolingo
+    minWidth: 280, // Minimum width for proper button sizing
+    height: 56, // Perfect button height like Duolingo
   },
 
   
-  // General slide styles
+  // General slide styles - Perfect Duolingo branding
   slideContainer: {
     flex: 1,
-    paddingHorizontal: 30,
-    paddingTop: 40,
+    paddingHorizontal: 24, // Duolingo standard padding
+    paddingTop: 60, // More top space
+    paddingBottom: 120, // Space for bottom button
   },
   slideHeader: {
-    alignItems: 'center',
-    marginBottom: 40,
+    alignItems: 'flex-start', // Left-aligned like Duolingo
+    marginBottom: 48, // More space for better visual hierarchy
   },
   slideTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    lineHeight: 40,
-    marginBottom: 16,
-    letterSpacing: -0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.6)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 6,
+    fontFamily: FontFamilies.featherBold,
+    fontSize: 32, // Perfect slide title size
+    lineHeight: 38, // Tight line height
+    color: '#000000', // Pure black
+    textAlign: 'left', // Left-aligned like Duolingo
+    marginBottom: 16, // Perfect spacing
+    letterSpacing: -0.3, // Slight negative letter spacing
+    fontWeight: '800', // Bold but not as bold as welcome
   },
   slideSubtitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    opacity: 0.95,
-    lineHeight: 24,
-    maxWidth: 300,
-    textShadowColor: 'rgba(0, 0, 0, 0.4)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 16, // Perfect subtitle size
+    lineHeight: 24, // Comfortable reading
+    color: '#666666', // Medium gray for subtitle
+    textAlign: 'left', // Left-aligned like Duolingo
+    maxWidth: '100%', // Full width
+    fontWeight: '400', // Regular weight
   },
   optionsContainer: {
     flex: 1,
-    paddingBottom: 40,
+    paddingBottom: 20, // Reduced since button is absolute positioned
   },
   optionButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#FFFFFF', // Pure white
+    borderRadius: 16, // Perfect rounded corners like Duolingo
+    padding: 20, // Generous padding
+    marginBottom: 16, // Perfect spacing between options
+    borderWidth: 2, // Slightly thicker border
+    borderColor: '#E5E5E5', // Light gray border
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.08, // Very subtle shadow
+    shadowRadius: 8,
+    elevation: 2,
+    minHeight: 64, // Minimum height for better touch targets
   },
   optionButtonSelected: {
-    borderColor: '#FFFFFF',
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    shadowColor: '#FFFFFF',
+    borderColor: '#58cc02', // Duolingo green
+    backgroundColor: '#F0F9F0', // Very light green background
+    shadowColor: '#58cc02',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  optionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  optionButtonTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    textShadowColor: 'rgba(0, 0, 0, 0.4)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  slideFooter: {
-    paddingBottom: 40,
-  },
-  continueButton: {
-    backgroundColor: '#FFFFFF',
-    minWidth: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  
-  // Input styles
-  inputContainer: {
-    flex: 1,
-    marginBottom: 40,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  textInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 16,
-    padding: 16,
-    fontSize: 16,
-    color: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOpacity: 0.15, // Slightly more visible shadow when selected
+    shadowRadius: 12,
     elevation: 4,
   },
-  inputHelper: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    opacity: 0.7,
-    marginTop: 8,
-    textAlign: 'center',
-    fontStyle: 'italic',
+  optionButtonText: {
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 16, // Perfect text size
+    fontWeight: '600', // Semi-bold for options
+    color: '#000000', // Pure black
+    textAlign: 'left', // Left-aligned like Duolingo
+    lineHeight: 22, // Comfortable line height
+  },
+  optionButtonTextSelected: {
+    color: '#000000', // Keep black text
+    fontWeight: '700', // Slightly bolder when selected
   },
   
-  // Complete slide styles
+  // Input styles - Perfect Duolingo branding
+  inputContainer: {
+    flex: 1,
+    marginBottom: 20, // Reduced since button is absolute positioned
+  },
+  inputLabel: {
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 16, // Perfect label size
+    fontWeight: '600', // Semi-bold for labels
+    color: '#000000', // Pure black
+    marginBottom: 12, // Perfect spacing
+    lineHeight: 22, // Comfortable line height
+  },
+  textInput: {
+    fontFamily: FontFamilies.dinRounded,
+    backgroundColor: '#FFFFFF', // Pure white
+    borderRadius: 16, // Perfect rounded corners
+    padding: 20, // Generous padding
+    fontSize: 16, // Perfect text size
+    color: '#000000', // Pure black
+    borderWidth: 2, // Slightly thicker border
+    borderColor: '#E5E5E5', // Light gray border
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, // Very subtle shadow
+    shadowRadius: 8,
+    elevation: 2,
+    minHeight: 64, // Minimum height for better touch targets
+  },
+  inputHelper: {
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 14, // Perfect helper text size
+    color: '#666666', // Medium gray
+    marginTop: 12, // Perfect spacing
+    textAlign: 'left', // Left-aligned
+    fontStyle: 'normal', // No italic
+    lineHeight: 20, // Comfortable line height
+  },
+  inputError: {
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 14, // Perfect error text size
+    color: '#FF3B30', // iOS red
+    marginTop: 12, // Perfect spacing
+    textAlign: 'left', // Left-aligned
+    lineHeight: 20, // Comfortable line height
+  },
+  usernameInputContainer: {
+    position: 'relative',
+  },
+  textInputError: {
+    borderColor: '#FF3B30', // iOS red
+    backgroundColor: '#FFF5F5', // Light red background
+  },
+  textInputSuccess: {
+    borderColor: '#34C759', // iOS green
+    backgroundColor: '#F0FFF0', // Light green background
+  },
+  checkingIndicator: {
+    position: 'absolute',
+    right: 16,
+    top: 20,
+  },
+  checkingText: {
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 12,
+    color: '#666666',
+    fontStyle: 'italic',
+  },
+  availableIndicator: {
+    position: 'absolute',
+    right: 16,
+    top: 20,
+  },
+  availableText: {
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 12,
+    color: '#34C759', // iOS green
+    fontWeight: '600',
+  },
+  
+  // Complete slide styles - Perfect Duolingo branding
   completeContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 30,
+    paddingHorizontal: 24, // Duolingo standard padding
+    paddingBottom: 120, // Space for bottom button
   },
   completeContent: {
     alignItems: 'center',
-    marginBottom: 60,
+    marginBottom: 60, // More space
   },
   completeTitle: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 16,
-    textShadowColor: 'rgba(0, 0, 0, 0.7)',
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 8,
+    fontFamily: FontFamilies.featherBold,
+    fontSize: 36, // Perfect complete title size
+    lineHeight: 42, // Tight line height
+    color: '#000000', // Pure black
+    textAlign: 'center', // Center-aligned for completion
+    marginBottom: 20, // Perfect spacing
+    fontWeight: '800', // Bold
+    letterSpacing: -0.3, // Slight negative letter spacing
   },
   completeSubtitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    opacity: 0.95,
-    lineHeight: 26,
-    maxWidth: 300,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 18, // Perfect subtitle size
+    lineHeight: 26, // Comfortable reading
+    color: '#666666', // Medium gray
+    textAlign: 'center', // Center-aligned for completion
+    maxWidth: '100%', // Full width
+    fontWeight: '400', // Regular weight
   },
-  completeActions: {
+  
+  // Bottom button container - Perfect Duolingo positioning
+  bottomButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingBottom: 40, // Safe area padding
+    paddingTop: 24,
+    backgroundColor: '#FFFFFF', // White background to ensure button is visible
+  },
+  primaryButton: {
     width: '100%',
-    alignItems: 'center',
-  },
-  startButton: {
-    backgroundColor: '#FFFFFF',
-    minWidth: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  welcomeImage: {
-    width: RPW(100),
-    height: RPH(75),
+    minWidth: 280,
+    height: 56, // Perfect Duolingo button height
   },
 });

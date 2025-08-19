@@ -10,14 +10,17 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.wood.working"
+      "bundleIdentifier": "com.wood.working",
+      "usesAppleSignIn": true,
+      "appleTeamId": "43ZGN39D84"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.wood.working"
     },
     "web": {
       "bundler": "metro",
@@ -34,7 +37,17 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Feather Bold.ttf",
+            "./assets/fonts/din-next-rounded-lt-pro-regular.ttf"
+          ]
+        }
+      ],
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true

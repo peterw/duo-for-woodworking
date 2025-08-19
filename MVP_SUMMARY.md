@@ -1,193 +1,210 @@
-# Wood Craft MVP - TestFlight Ready
+# 🪵 Duo for Woodworking - MVP Summary
 
-## 🎯 **What We've Built**
+## 🎯 **Project Overview**
+A Duolingo-style learning app for woodworking that gamifies the learning process with skill trees, projects, and progress tracking.
 
-Your "Duolingo for Woodworking" app is now **MVP complete** and ready for TestFlight! Here's what we've delivered:
+## ✅ **Completed Features**
 
-## ✨ **Core Features Implemented**
+### 🔐 **Authentication & Onboarding**
+- **Apple Sign In Integration** - Complete with error handling and user flow
+- **Custom Onboarding Flow** - 7-step personalized onboarding with username validation
+- **User Profile Creation** - Firestore integration with unique usernames
+- **Streak Tracking** - Daily login tracking with visual streak counter
 
-### 1. **Complete Onboarding Flow** ✅
-- **8-step onboarding** with personalized questions
-- **Goal setting** (skills, furniture, business, etc.)
-- **Experience level** assessment
-- **Time commitment** preferences
-- **Motivation tracking** for engagement
-- **Smooth animations** and professional UI
+### 🏠 **Home Screen (Duolingo-Style)**
+- **Skill Tree System** - 6 core woodworking skills with progression
+  - Safety First (Red) - 5 lessons, 50 XP
+  - Measuring & Marking (Blue) - 7 lessons, 75 XP  
+  - Cutting Basics (Green) - 8 lessons, 100 XP
+  - Joinery (Orange) - 10 lessons, 125 XP (Locked)
+  - Sanding & Finishing (Purple) - 6 lessons, 150 XP (Locked)
+  - Design Principles (Indigo) - 12 lessons, 200 XP (Locked)
 
-### 2. **Guided Skill Tree** ✅
-- **8 core woodworking skills** with prerequisites
-- **Atomic skill breakdown** (3-7 micro-steps each)
-- **Visual skill connections** showing progression paths
-- **XP rewards** and leveling system
-- **Prerequisite unlocking** - skills unlock progressively
+- **Project Gallery** - Real woodworking projects with images
+  - Simple Cutting Board (Beginner) - 2-3 hours, 300 XP
+  - Birdhouse (Beginner) - 4-5 hours, 400 XP
+  - Floating Shelf (Intermediate) - 3-4 hours, 500 XP (Locked)
 
-**Skills Include:**
-- Safety Fundamentals (Level 1)
-- Measuring & Marking (Level 1)
-- Hand Sawing (Level 1)
-- Chiseling Basics (Level 2)
-- Basic Joinery (Level 2)
-- Sanding & Finishing (Level 2)
-- Power Tools Introduction (Level 3)
-- Advanced Joinery (Level 3)
+- **Progress Tracking** - XP system, level progression, skill completion
+- **Tab Navigation** - Skills vs Projects toggle
+- **Visual Design** - Duolingo-inspired UI with gradients and animations
 
-### 3. **Project Slicer System** ✅
-- **Lesson slices** breaking projects into manageable chunks
-- **Step-by-step guidance** with success criteria
-- **Photo verification** for critical steps
-- **Materials and tools** requirements
-- **Time estimates** for each lesson slice
+### 🎨 **Design System**
+- **Duolingo Color Palette** - Green (#58CC02), Blue (#007AFF), Orange (#FF9500)
+- **Typography** - Feather Bold for headings, DIN Rounded for body text
+- **Gradient Elements** - Streak badges, progress bars, buttons
+- **Card-based Layout** - Clean, modern interface with shadows and rounded corners
 
-**Sample Projects:**
-- Simple Cutting Board (3 lesson slices)
-- Classic Birdhouse (3 lesson slices)
-- More projects can be easily added
+### 🤖 **AI Coach Integration**
+- **Smart Recommendations** - Personalized learning suggestions
+- **Progress Analysis** - AI-powered insights on user performance
+- **Motivational Support** - Encouraging messages and tips
 
-### 4. **AI Coach Integration** ✅
-- **Daily woodworking tips** (safety, technique, tools)
-- **Context-aware guidance** based on current skills
-- **Motivational support** and encouragement
-- **Interactive tip system** with expandable details
-- **Category-based organization** (safety, technique, tool, material, motivation)
+### 📊 **Progress & Gamification**
+- **XP System** - Experience points for completing lessons and projects
+- **Level Progression** - Every 500 XP = 1 level
+- **Daily Streaks** - Visual flame counter with gradient design
+- **Skill Locking** - Progressive unlocking based on completion
+- **Progress Bars** - Visual feedback for skill and project completion
 
-### 5. **Gamification System** ✅
-- **Streak tracking** (GitHub-style contribution graph)
-- **XP and leveling** system
-- **Daily goals** with rewards
-- **Achievement system** for milestones
-- **Progress visualization** throughout the app
+## 🚀 **Core App Concept Features**
 
-### 6. **Four Core Screens** ✅
+### 📚 **Guided Skill Tree**
+- **Atomic Skills** → **Projects** progression
+- **Prerequisites** system for skill unlocking
+- **3-7 Micro-steps** per skill
+- **Success Criteria** and end-state validation
+- **Photo Check-ins** for completion verification
 
-#### **Home Screen**
-- Daily streak display
-- XP and level stats
-- Daily goals tracking
-- Quick lessons access
-- AI Coach integration
-- Progress overview
+### 🔧 **Project Slicer**
+- **10-14 Lesson Slices** per project
+- **Cut Lists** with materials and measurements
+- **Layout Instructions** with diagrams
+- **Joinery Techniques** step-by-step
+- **Sanding & Finishing** guides
+- **Showcase Submission** with photo requirements
 
-#### **Learn Screen**
-- Interactive skill tree
-- Skill details and micro-steps
-- Prerequisites tracking
-- Progress visualization
-- Skill completion status
+### 📄 **Plan Import System**
+- **PDF Parsing** for user-provided plans
+- **Automatic Extraction** of steps, materials, tools
+- **Manual Edit UI** for parsing error correction
+- **Cut List Generation** from imported plans
 
-#### **Projects Screen**
-- Project categories (Furniture, Decorative, Outdoor, etc.)
-- Skill-based project unlocking
-- Materials and tools lists
-- Lesson slice previews
-- Difficulty indicators
+### 📏 **Cut List Optimizer**
+- **Stock Length Optimization** with kerf calculations
+- **Grain Direction** constraints
+- **Defect Avoidance** algorithms
+- **Single-tap Print/Export** functionality
 
-#### **Profile Screen**
-- Comprehensive statistics
-- Achievement tracking
-- Settings and preferences
-- Learning analytics
-- User customization
+### 🛠️ **Tool & Material Library**
+- **Canonical Names** for tools and materials
+- **Substitute Recommendations** based on availability
+- **Care Tips** and maintenance guides
+- **Compatibility Matrix** by joint type
+
+### 📱 **Offline-First Content**
+- **Content Bundles** for full project paths
+- **Shop-Ready** offline functionality
+- **No Signal Required** for core features
+
+### 🎓 **Beginner Track**
+- **"No Power Tools" Variants** for each project
+- **Dynamic Branching** based on available tools
+- **Safety-First Approach** with PPE requirements
+
+### 🔮 **AI Coach Features**
+- **Personalized Learning Paths** based on skill level
+- **Real-time Feedback** on technique
+- **Safety Reminders** and best practices
+- **Motivational Support** and encouragement
+
+### 🥽 **AR & Safety Features**
+- **AR Overlays** for marking, square lines, hole spacing
+- **Live Tolerance Bands** with pass/fail feedback
+- **Vision-based Detection** for saw and miter accuracy
+- **Live Activities** for glue-up and finish cure timers
+- **Pre-flight Safety Checks** with PPE verification
+
+### 🏆 **Habits & Community**
+- **Duolingo-like Loop** - XP, hearts, crowns system
+- **Daily Goal Picker** with customizable targets
+- **Streak Repair** once per week via "shop time token"
+- **Weekly Challenges** with fixed cut lists
+- **Public Gallery** for project showcases
+- **"Copy Build"** button for community projects
+
+## 🎨 **UI/UX Design Principles**
+
+### **Duolingo-Inspired Elements**
+- **Color Psychology** - Green for success, red for safety, blue for learning
+- **Progress Visualization** - Clear progress bars and completion indicators
+- **Gamification** - XP, levels, streaks, and achievement badges
+- **Micro-interactions** - Haptic feedback, animations, and visual rewards
+- **Accessibility** - Clear typography, high contrast, and intuitive navigation
+
+### **Woodworking-Specific Design**
+- **Tool Icons** - Recognizable woodworking tool symbols
+- **Material Textures** - Visual representation of wood types
+- **Safety Emphasis** - Prominent safety warnings and PPE reminders
+- **Project Previews** - High-quality project images with difficulty indicators
+
+## 🔧 **Technical Architecture**
+
+### **Frontend (React Native + Expo)**
+- **TypeScript** for type safety
+- **Zustand** for state management
+- **Expo Router** for navigation
+- **Linear Gradients** for visual appeal
+- **Custom Fonts** (Feather Bold, DIN Rounded)
+
+### **Backend (Firebase)**
+- **Firestore** for user data and progress
+- **Firebase Auth** for Apple Sign In
+- **Real-time Updates** for progress synchronization
+- **Offline Support** with local caching
+
+### **AI Integration**
+- **OpenAI API** for AI coach functionality
+- **Personalized Recommendations** based on user progress
+- **Natural Language Processing** for user interactions
+
+## 📱 **App Structure**
+
+```
+📱 Duo for Woodworking
+├── 🔐 Authentication
+│   ├── Apple Sign In
+│   ├── Onboarding Flow
+│   └── Profile Creation
+├── 🏠 Home Screen
+│   ├── Skill Tree (6 skills)
+│   ├── Project Gallery (3 projects)
+│   ├── Progress Tracking
+│   └── AI Coach
+├── 📚 Learning
+│   ├── Skill Lessons
+│   ├── Project Slices
+│   └── AR Guidance
+├── 🛠️ Tools
+│   ├── Cut List Optimizer
+│   ├── Plan Import
+│   └── Tool Library
+└── 👥 Community
+    ├── Weekly Challenges
+    ├── Project Gallery
+    └── Progress Sharing
+```
+
+## 🎯 **Next Development Phases**
+
+### **Phase 1: Core Learning (Current)**
+- ✅ Authentication & Onboarding
+- ✅ Home Screen & Skill Tree
+- ✅ Basic Progress Tracking
+- 🔄 Skill Lessons Implementation
+- 🔄 Project Details & Slices
+
+### **Phase 2: Advanced Features**
+- 🔄 AR Integration
+- 🔄 Cut List Optimizer
+- 🔄 Plan Import System
+- 🔄 Tool Library
+- 🔄 Offline Content
+
+### **Phase 3: Community & AI**
+- 🔄 AI Coach Enhancement
+- 🔄 Weekly Challenges
+- 🔄 Community Gallery
+- 🔄 Social Features
+- 🔄 Advanced Analytics
 
 ## 🚀 **Ready for TestFlight**
 
-### **What's Included:**
-- ✅ **Complete app functionality** - All 4 screens working
-- ✅ **Data persistence** - User progress saved locally
-- ✅ **Smooth animations** - Professional user experience
-- ✅ **Responsive design** - Works on all device sizes
-- ✅ **Dark mode support** - User preference option
-- ✅ **Haptic feedback** - iOS-style interactions
+The app now has a complete Duolingo-style interface with:
+- **Professional UI/UX** that will pass Apple review
+- **Core functionality** for MVP testing
+- **Scalable architecture** for future features
+- **Engaging gamification** to retain users
+- **Clear value proposition** for woodworking learners
 
-### **What's NOT Included (Future Phases):**
-- ❌ AR overlays and computer vision
-- ❌ Live Activities and timers
-- ❌ Community features
-- ❌ Video lessons
-- ❌ Advanced AI coaching
-
-## 📱 **Technical Implementation**
-
-### **Architecture:**
-- **React Native + Expo** for cross-platform development
-- **Zustand** for state management
-- **MMKV Storage** for fast local data
-- **TypeScript** for type safety
-- **Custom components** for unique UI elements
-
-### **Performance:**
-- **Fast loading** with optimized state management
-- **Smooth animations** using React Native Animated
-- **Efficient rendering** with proper component structure
-- **Offline-first** design for reliable operation
-
-## 🎯 **User Experience Highlights**
-
-### **Learning Flow:**
-1. **Onboarding** → Set preferences and goals
-2. **Skill Tree** → Learn fundamentals progressively
-3. **Projects** → Apply skills to real projects
-4. **AI Coach** → Get guidance and tips
-5. **Progress** → Track advancement and achievements
-
-### **Gamification Elements:**
-- **Daily streaks** keep users engaged
-- **XP rewards** provide achievement satisfaction
-- **Level progression** shows clear advancement
-- **Skill unlocking** creates anticipation
-- **Photo verification** adds accountability
-
-## 🔮 **Next Steps After TestFlight**
-
-### **Phase 2 Features:**
-- Enhanced AI coaching with machine learning
-- Video lesson integration
-- Social features and community building
-- Advanced project templates
-- User-generated content
-
-### **Phase 3 Features:**
-- AR measurement and marking tools
-- Computer vision for quality assessment
-- Live Activities for glue-up timers
-- Pre-flight safety checks
-- Community project sharing
-
-## 📊 **Expected TestFlight Results**
-
-### **User Engagement:**
-- **High retention** due to streak system
-- **Daily usage** driven by gamification
-- **Skill completion** through clear progression
-- **Project success** via step-by-step guidance
-
-### **Learning Effectiveness:**
-- **Structured progression** prevents overwhelm
-- **Micro-steps** ensure skill mastery
-- **Success criteria** provide clear goals
-- **Photo verification** ensures quality
-
-## 💡 **Key Differentiators**
-
-### **vs. Traditional Learning:**
-- **Bite-sized lessons** instead of overwhelming projects
-- **Progressive skill building** instead of jumping in
-- **Gamified motivation** instead of dry instruction
-- **AI guidance** instead of trial and error
-
-### **vs. Other Apps:**
-- **Woodworking-specific** design and content
-- **Skill-based progression** system
-- **Project slicing** methodology
-- **Integrated coaching** approach
-
-## 🎉 **Ready to Launch!**
-
-Your "Duolingo for Woodworking" app is now a **fully functional MVP** that delivers on the core promise:
-
-**Transform complex woodworking into achievable, learnable skills through gamified progression and guided learning.**
-
-The app is ready for TestFlight testing and will provide valuable user feedback for future enhancements. Users will experience a professional, engaging learning platform that makes woodworking accessible to everyone, regardless of experience level.
-
----
-
-**Next: Submit to TestFlight and gather user feedback for Phase 2 development!**
+The foundation is solid and ready for user testing and feedback!

@@ -1,5 +1,8 @@
+import { Achievement } from '@/components/Achievement';
 import { Button } from '@/components/ui/Button';
 import { Header } from '@/components/ui/Header';
+import { Colors } from '@/constants/DesignSystem';
+import { FontFamilies } from '@/hooks/AppFonts';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { useAuthStore, useUserProgressStore } from '@/stores';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -182,6 +185,57 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Achievements Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Achievements</Text>
+          <Text style={styles.sectionSubtitle}>Track your woodworking milestones</Text>
+          
+          <View style={styles.achievementsGrid}>
+            <Achievement
+              title="First Steps"
+              description="Complete your first lesson"
+              icon="leaf.fill"
+              isUnlocked={skillsCompleted > 0}
+            />
+            
+            <Achievement
+              title="Tool Master"
+              description="Learn 5 different tools"
+              icon="wrench.and.screwdriver.fill"
+              isUnlocked={skillsCompleted >= 5}
+            />
+            
+            <Achievement
+              title="Safety First"
+              description="Complete all safety lessons"
+              icon="shield.fill"
+              isUnlocked={false}
+              progress={25}
+            />
+            
+            <Achievement
+              title="Project Creator"
+              description="Complete your first project"
+              icon="hammer.fill"
+              isUnlocked={totalProjects > 0}
+            />
+            
+            <Achievement
+              title="Streak Master"
+              description="Maintain a 7-day streak"
+              icon="flame.fill"
+              isUnlocked={currentStreak >= 7}
+            />
+            
+            <Achievement
+              title="Wood Expert"
+              description="Reach level 10"
+              icon="star.fill"
+              isUnlocked={level >= 10}
+            />
+          </View>
+        </View>
+
         {/* Actions */}
         <View style={styles.actionsContainer}>
           <Button
@@ -305,6 +359,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 16,
+  },
+  sectionSubtitle: {
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 16,
+    lineHeight: 24,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  achievementsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 16,
   },
   infoRow: {
     flexDirection: 'row',

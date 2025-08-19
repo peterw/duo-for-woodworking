@@ -1,16 +1,12 @@
+import AppleSignupModal from '@/components/AppleSignupModal';
 import GeneralStatusBarColor from '@/components/GeneralStatusBarColor';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { FontFamilies } from '@/hooks/AppFonts';
 import { useAppStore, useAuthStore } from '@/stores';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -20,307 +16,284 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-  const { login, isLoading, error, setError } = useAuthStore();
   const { setOnboardingCompleted } = useAppStore();
-  
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
+  const { isAuthenticated, user, appleSignIn, isLoading, error, clearAuthError } = useAuthStore();
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [showSignupModal, setShowSignupModal] = useState(false);
 
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field as keyof typeof errors]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
-    }
-    // Clear auth error when user starts typing
-    if (error) {
-      setError(null);
-    }
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: { email?: string; password?: string } = {};
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email address is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
-    if (!formData.password.trim()) {
-      newErrors.password = 'Password is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleLogin = async () => {
-    if (!validateForm()) return;
-
-    try {
-      setError(null);
-      const success = await login(formData.email, formData.password);
-      
-      if (success) {
-        setOnboardingCompleted();
-        Alert.alert(
-          'Welcome Back!',
-          'You\'ve successfully signed in to Wood Craft.',
-          [{ text: 'Continue', onPress: () => router.replace('/(tabs)') }]
-        );
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      // Error is already handled by the auth store
-    }
-  };
-
-  // Get error from auth store
-  const { error: authError } = useAuthStore();
-  
-  // Display auth error if exists
+  // Clear any existing auth errors when component mounts
   useEffect(() => {
-    if (authError) {
-      setError(authError);
+    clearAuthError();
+  }, [clearAuthError]);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      router.replace('/(tabs)');
     }
-  }, [authError]);
+  }, [isAuthenticated, user, router]);
 
-  const handleSignup = () => {
-    router.push('/signup');
-  };
-
-  const handleForgotPassword = async () => {
-    if (!formData.email.trim()) {
-      Alert.alert('Error', 'Please enter your email address first.');
-      return;
+  // Show error alerts (but not for expected scenarios)
+  useEffect(() => {
+    if (error && !error.includes('no-current-user') && !error.includes('Unable to verify')) {
+      Alert.alert('Sign In Error', error, [
+        { text: 'OK', onPress: () => {} }
+      ]);
     }
+  }, [error]);
 
+  const handleAppleSignIn = async () => {
+    if (isSigningIn) return; // Prevent multiple taps
+    
+    setIsSigningIn(true);
     try {
-      const { resetPassword } = useAuthStore.getState();
-      const success = await resetPassword(formData.email.trim());
-      
-      if (success) {
-        Alert.alert(
-          'Password Reset Email Sent',
-          'Check your email for a link to reset your password. If you don\'t see it, check your spam folder.',
-          [{ text: 'OK' }]
-        );
+      const result = await appleSignIn();
+      if (result === true) {
+        // Success - user will be redirected automatically
+        console.log('Apple Sign In successful');
+      } else if (result === 'NEEDS_SIGNUP') {
+        // User needs to complete signup
+        setShowSignupModal(true);
       }
     } catch (error) {
-      console.error('Password reset error:', error);
-      // Error is already handled by the auth store
+      console.error('Apple Sign In error:', error);
+      Alert.alert('Sign In Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSigningIn(false);
     }
+  };
+
+  const handleSignupModalClose = () => {
+    setShowSignupModal(false);
+  };
+
+  const handleSignupModalSignup = () => {
+    setShowSignupModal(false);
+    // The modal will handle navigation to onboarding
   };
 
   const handleBackToWelcome = () => {
     router.back();
   };
 
+  const handleSignup = () => {
+    router.push('/signup');
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <GeneralStatusBarColor backgroundColor={colors.background} barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header Section */}
-          <View style={styles.headerSection}>
-            <View style={styles.logoContainer}>
-              <View style={[styles.logoBackground, { backgroundColor: colors.tint }]}>
-                <Text style={styles.logoText}>WC</Text>
-              </View>
+    <View style={styles.container}>
+      <GeneralStatusBarColor backgroundColor="#FFFFFF" barStyle="dark-content" />
+      
+      <SafeAreaView style={styles.safeArea}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBackToWelcome} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Main Content */}
+        <View style={styles.mainContainer}>
+          {/* Welcome Content */}
+          <View style={styles.welcomeContent}>
+            <Text style={styles.welcomeTitle}>
+              Welcome Back!
+            </Text>
+            
+            <Text style={styles.welcomeSubtitle}>
+              Continue your woodworking journey with a single tap
+            </Text>
+            
+            {/* Apple Sign In Button */}
+            <View style={styles.buttonContainer}>
+              <Button
+                title={isSigningIn ? "Signing In..." : "Sign In with Apple"}
+                onPress={handleAppleSignIn}
+                variant="primary"
+                size="large"
+                icon={isSigningIn ? undefined : "applelogo"}
+                iconPosition="left"
+                style={{
+                  ...styles.appleButton,
+                  ...(isSigningIn ? styles.appleButtonLoading : {})
+                }}
+                textStyle={styles.appleButtonText}
+                disabled={isSigningIn || isLoading}
+              />
             </View>
-            <Text style={[styles.title, { color: colors.text }]}>
-              Welcome Back
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.tabIconDefault }]}>
-              Continue your woodworking journey
-            </Text>
           </View>
-
-          {/* Form Section */}
-          <View style={styles.formSection}>
-            <Input
-              label="Email Address"
-              value={formData.email}
-              onChangeText={(value) => handleInputChange('email', value)}
-              placeholder="Enter your email"
-              error={errors.email}
-              leftIcon="envelope.fill"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              size="medium"
-            />
-
-            <Input
-              label="Password"
-              value={formData.password}
-              onChangeText={(value) => handleInputChange('password', value)}
-              placeholder="Enter your password"
-              error={errors.password}
-              leftIcon="lock.fill"
-              secureTextEntry
-              size="medium"
-            />
-
-            {/* Forgot Password */}
-            <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordContainer}>
-              <Text style={[styles.forgotPasswordText, { color: colors.tint }]}>
-                Forgot Password?
-              </Text>
-            </TouchableOpacity>
-
-            {/* Error Display */}
-            {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionSection}>
-            <Button
-              title="Sign In"
-              onPress={handleLogin}
-              loading={isLoading}
-              disabled={isLoading}
-              size="large"
-              style={styles.primaryButton}
-            />
-
-            <Button
-              title="Back to Welcome"
-              onPress={handleBackToWelcome}
-              variant="ghost"
-              size="medium"
-              style={styles.secondaryButton}
-            />
-          </View>
-
-
-
-          {/* Signup link */}
-          <View style={styles.signupSection}>
-            <Text style={[styles.signupText, { color: colors.tabIconDefault }]}>
-              Don't have an account?{' '}
-            </Text>
-            <TouchableOpacity onPress={handleSignup}>
-              <Text style={[styles.signupLink, { color: colors.tint }]}>
-                Create Account
+          
+          {/* Actions */}
+          <View style={styles.welcomeActions}>
+            <TouchableOpacity onPress={handleSignup} style={styles.signupLink}>
+              <Text style={styles.signupText}>
+                Don't have an account? <Text style={styles.signupTextBold}>Create one</Text>
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </View>
+      </SafeAreaView>
+
+      {/* Apple Signup Modal */}
+      <AppleSignupModal
+        visible={showSignupModal}
+        onClose={handleSignupModalClose}
+        onSignup={handleSignupModalSignup}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF', // Clean white background like Duolingo
   },
-  keyboardView: {
+  safeArea: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 32,
+  header: {
+    paddingHorizontal: 24, // Duolingo standard padding
+    paddingTop: 20, // Reduced from 60px - closer to top like Duolingo
+    paddingBottom: 20,
+    alignItems: 'flex-start',
   },
-  headerSection: {
+  backButton: {
+    padding: 12, // Larger touch target like Duolingo
+    borderRadius: 8, // Rounded corners
+  },
+  backButtonText: {
+    fontSize: 28, // Larger back arrow like Duolingo
+    color: '#000000', // Pure black for maximum contrast
+    fontWeight: '600',
+  },
+  mainContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: 24, // Duolingo standard padding
+    paddingTop: 40,
+  },
+  welcomeContent: {
     alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoContainer: {
-    marginBottom: 24,
-  },
-  logoBackground: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
+    paddingTop: 40, // Space from header
+  },
+  welcomeTitle: {
+    fontFamily: FontFamilies.featherBold, // Custom font like Duolingo
+    fontSize: 44, // Perfect Duolingo title size
+    fontWeight: '900', // Extra bold like Duolingo
+    color: '#000000', // Pure black for maximum contrast
+    textAlign: 'center',
+    marginBottom: 24, // Perfect spacing between title and subtitle
+    letterSpacing: -0.8, // Slight negative letter spacing for modern feel
+    lineHeight: 50, // Tight line height for modern look
+  },
+  welcomeSubtitle: {
+    fontFamily: FontFamilies.dinRounded, // Custom font like Duolingo
+    fontSize: 20, // Larger subtitle size like Duolingo
+    fontWeight: '400', // Regular weight
+    color: '#666666', // Dark gray for subtitle like Duolingo
+    textAlign: 'center',
+    lineHeight: 28, // Comfortable reading line height
+    maxWidth: 320,
+    marginBottom: 60, // More space before button like Duolingo
+    opacity: 0.9, // Slight transparency like Duolingo
+  },
+  buttonContainer: {
+    width: '100%',
+    minWidth: 280, // Wider button like Duolingo
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  appleButton: {
+    width: '100%',
+    minWidth: 280, // Same width as container
+    height: 56, // Perfect Duolingo button height
+    backgroundColor: '#000000', // Apple's signature black
+    borderRadius: 12, // Apple's standard border radius
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1, // Very subtle shadow like Apple
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1, // Subtle border like Apple
+    borderColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  appleButtonLoading: {
+    opacity: 0.7, // Slightly dimmed when loading
+  },
+  appleButtonText: {
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  // COMMENTED OUT: Styles for other sign-in methods
+  /*
+  googleButton: {
+    width: '100%',
+    minWidth: 280,
+    height: 56,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
+    elevation: 2,
+  },
+  emailButton: {
+    width: '100%',
+    minWidth: 280,
+    height: 56,
+    backgroundColor: '#58CC02', // Duolingo green
+    borderRadius: 16,
+    shadowColor: '#58CC02',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     elevation: 4,
   },
-  logoText: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: 'white',
+  facebookButton: {
+    width: '100%',
+    minWidth: 280,
+    height: 56,
+    backgroundColor: '#1877F2', // Facebook blue
+    borderRadius: 16,
+    shadowColor: '#1877F2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  formSection: {
-    marginBottom: 32,
-  },
-  forgotPasswordContainer: {
-    alignItems: 'flex-end',
-    marginTop: -8,
-    marginBottom: 8,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  actionSection: {
-    gap: 16,
-    marginBottom: 24,
-  },
-  primaryButton: {
-    marginBottom: 8,
-  },
-  secondaryButton: {
-    marginTop: 8,
-  },
-  signupSection: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  */
+  welcomeActions: {
+    width: '100%',
     alignItems: 'center',
-  },
-  signupText: {
-    fontSize: 16,
+    paddingVertical: 40, // More padding like Duolingo
+    paddingBottom: 60, // Extra bottom padding for safe area
   },
   signupLink: {
+    marginTop: 24,
+    paddingVertical: 12, // Larger touch target
+    paddingHorizontal: 16,
+  },
+  signupText: {
+    fontFamily: FontFamilies.dinRounded, // Custom font like Duolingo
     fontSize: 16,
-    fontWeight: '600',
-  },
-  errorContainer: {
-    backgroundColor: '#FEE2E2',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-  },
-  errorText: {
-    color: '#DC2626',
-    fontSize: 14,
+    color: '#666666', // Dark gray like Duolingo
     textAlign: 'center',
-    fontWeight: '500',
+    opacity: 0.9,
+    lineHeight: 22, // Better readability
+  },
+  signupTextBold: {
+    fontWeight: '700',
+    color: '#58CC02', // Duolingo green for emphasis
+    opacity: 1,
   },
 });
