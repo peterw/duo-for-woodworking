@@ -1,18 +1,18 @@
 import { LessonCard } from '@/components/LessonCard';
 import { Header } from '@/components/ui/Header';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Colors } from '@/constants/DesignSystem';
+import { Colors } from '@/constants/Colors';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useUserProgressStore, woodworkingSkills } from '@/stores';
 import React, { useState } from 'react';
 import {
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -293,11 +293,11 @@ export default function LearnScreen() {
         {renderSkillDetails()}
         
         {/* Duolingo-style Lesson List */}
-        <View style={styles.lessonSection}>
-          <Text style={[styles.sectionTitle, { color: Colors.textPrimary }]}>
+        <View style={[styles.lessonSection, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+          <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
             Today's Lessons
           </Text>
-          <Text style={[styles.sectionSubtitle, { color: Colors.textSecondary }]}>
+          <Text style={[styles.sectionSubtitle, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
             Continue your woodworking journey
           </Text>
           
@@ -555,7 +555,6 @@ const styles = StyleSheet.create({
     marginTop: 30,
     padding: 20,
     borderRadius: 16,
-    backgroundColor: Colors.background,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -566,7 +565,6 @@ const styles = StyleSheet.create({
     fontFamily: FontFamilies.dinRounded,
     fontSize: 16,
     lineHeight: 24,
-    color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: 20,
   },

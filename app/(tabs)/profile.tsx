@@ -1,9 +1,10 @@
 import { Achievement } from '@/components/Achievement';
 import { Button } from '@/components/ui/Button';
 import { Header } from '@/components/ui/Header';
-import { Colors } from '@/constants/DesignSystem';
+import { Colors } from '@/constants/Colors';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore, useUserProgressStore } from '@/stores';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
@@ -21,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
+  const colorScheme = useColorScheme();
   const { appTheme: colors } = useAppTheme();
   const { user, logout } = useAuthStore();
   const { 
@@ -188,7 +190,7 @@ export default function ProfileScreen() {
         {/* Achievements Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Achievements</Text>
-          <Text style={styles.sectionSubtitle}>Track your woodworking milestones</Text>
+          <Text style={[styles.sectionSubtitle, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>Track your woodworking milestones</Text>
           
           <View style={styles.achievementsGrid}>
             <Achievement
@@ -364,7 +366,6 @@ const styles = StyleSheet.create({
     fontFamily: FontFamilies.dinRounded,
     fontSize: 16,
     lineHeight: 24,
-    color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: 20,
   },
