@@ -42,6 +42,86 @@ interface LessonSlice {
   steps: string[];
   successCriteria: string[];
   photoCheckRequired: boolean;
+  isCompleted?: boolean;
+  completedPhotos?: string[];
+  cutList?: CutListItem[];
+  materials?: MaterialItem[];
+  tools?: ToolItem[];
+}
+
+// New interfaces for enhanced project management
+interface CutListItem {
+  id: string;
+  name: string;
+  quantity: number;
+  dimensions: {
+    length: number;
+    width: number;
+    thickness: number;
+  };
+  material: string;
+  grainDirection?: 'with' | 'against' | 'cross';
+  notes?: string;
+  isCut?: boolean;
+  stockLength?: number;
+  waste?: number;
+}
+
+interface MaterialItem {
+  id: string;
+  name: string;
+  type: 'wood' | 'hardware' | 'finish' | 'adhesive';
+  quantity: number;
+  unit: string;
+  specifications?: string;
+  alternatives?: string[];
+  supplier?: string;
+  cost?: number;
+}
+
+interface ToolItem {
+  id: string;
+  name: string;
+  type: 'hand' | 'power' | 'measuring' | 'safety';
+  required: boolean;
+  alternatives?: string[];
+  safetyNotes?: string;
+  maintenanceTips?: string;
+}
+
+interface ProjectPlan {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  estimatedTime: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  materials: MaterialItem[];
+  tools: ToolItem[];
+  cutList: CutListItem[];
+  lessonSlices: LessonSlice[];
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface ProjectSlice {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  type: 'cutting' | 'assembly' | 'finishing' | 'safety' | 'planning';
+  duration: string;
+  steps: string[];
+  successCriteria: string[];
+  photoCheckRequired: boolean;
+  cutList: CutListItem[];
+  materials: MaterialItem[];
+  tools: ToolItem[];
+  isCompleted: boolean;
+  completedPhotos: string[];
+  notes: string;
+  order: number;
 }
 
 interface UserProgress {
@@ -61,6 +141,25 @@ interface UserProgress {
   lastLoginDate: string;
 }
 
+interface OfflineBundle {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  size: number; // in MB
+  downloadProgress: number;
+  isDownloaded: boolean;
+  lastUpdated: Date;
+  content: {
+    projectPlan: ProjectPlan;
+    lessonSlices: ProjectSlice[];
+    cutLists: CutListItem[];
+    materials: MaterialItem[];
+    tools: ToolItem[];
+    images: string[];
+  };
+}
+
 interface UserProgressStore extends UserProgress {
   // Actions
   checkDailyLogin: () => void;
@@ -70,6 +169,28 @@ interface UserProgressStore extends UserProgress {
   completeProject: (projectId: string) => void;
   addXP: (amount: number) => void;
   resetProgress: () => void;
+  
+  // New project management actions
+  createProjectPlan: (project: Project, customizations?: any) => ProjectPlan;
+  sliceProjectIntoLessons: (projectPlan: ProjectPlan) => ProjectSlice[];
+  optimizeCutList: (cutList: CutListItem[], stockLengths: number[]) => CutListItem[];
+  completeLessonSlice: (sliceId: string, photos?: string[], notes?: string) => void;
+  updateProjectProgress: (projectId: string, progress: any) => void;
+  
+  // Offline content management
+  downloadProjectBundle: (projectId: string) => Promise<void>;
+  removeOfflineBundle: (bundleId: string) => void;
+  getOfflineBundles: () => OfflineBundle[];
+  isProjectOffline: (projectId: string) => boolean;
+  
+  // State for project management
+  currentProjectPlan?: ProjectPlan;
+  projectSlices: ProjectSlice[];
+  activeProjectId?: string;
+
+  // State for offline content
+  offlineBundles: OfflineBundle[];
+  isDownloading: boolean;
 }
 
 // Enhanced woodworking skills based on TedsWoodworking approach
@@ -368,6 +489,15 @@ export const useUserProgressStore = create<UserProgressStore>()(
       completedSkills: [],
       completedProjects: [],
       lastLoginDate: '',
+      
+      // New project management state
+      currentProjectPlan: undefined,
+      projectSlices: [],
+      activeProjectId: undefined,
+
+      // Offline content state
+      offlineBundles: [],
+      isDownloading: false,
 
       // Actions
       checkDailyLogin: async () => {
@@ -562,7 +692,243 @@ export const useUserProgressStore = create<UserProgressStore>()(
           completedSkills: [],
           completedProjects: [],
           lastLoginDate: '',
+          currentProjectPlan: undefined,
+          projectSlices: [],
+          activeProjectId: undefined,
+          offlineBundles: [],
+          isDownloading: false,
         });
+      },
+
+      // New project management actions
+      createProjectPlan: (project: Project, customizations?: any) => {
+        const projectPlan: ProjectPlan = {
+          id: `plan-${project.id}-${Date.now()}`,
+          projectId: project.id,
+          title: project.title,
+          description: project.description,
+          estimatedTime: project.estimatedTime,
+          difficulty: project.difficulty,
+          materials: project.materials.map((material, index) => ({
+            id: `mat-${index}`,
+            name: material,
+            type: 'wood',
+            quantity: 1,
+            unit: 'piece',
+          })),
+          tools: project.tools.map((tool, index) => ({
+            id: `tool-${index}`,
+            name: tool,
+            type: 'hand',
+            required: true,
+          })),
+          cutList: [],
+          lessonSlices: project.lessonSlices,
+          notes: '',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        set({ currentProjectPlan: projectPlan, activeProjectId: project.id });
+        return projectPlan;
+      },
+
+      sliceProjectIntoLessons: (projectPlan: ProjectPlan) => {
+        const slices: ProjectSlice[] = projectPlan.lessonSlices.map((slice, index) => ({
+          id: slice.id,
+          projectId: projectPlan.projectId,
+          title: slice.title,
+          description: slice.description,
+          type: slice.type,
+          duration: slice.duration,
+          steps: slice.steps,
+          successCriteria: slice.successCriteria,
+          photoCheckRequired: slice.photoCheckRequired,
+          cutList: slice.cutList || [],
+          materials: slice.materials || [],
+          tools: slice.tools || [],
+          isCompleted: false,
+          completedPhotos: [],
+          notes: '',
+          order: index + 1,
+        }));
+
+        set({ projectSlices: slices });
+        return slices;
+      },
+
+      optimizeCutList: (cutList: CutListItem[], stockLengths: number[]) => {
+        // Simple optimization algorithm - can be enhanced later
+        const optimized = cutList.map(item => {
+          const bestStock = stockLengths.reduce((best, stock) => {
+            const waste = stock - item.dimensions.length;
+            if (waste >= 0 && waste < (best.waste || Infinity)) {
+              return { stock, waste };
+            }
+            return best;
+          }, { stock: 0, waste: Infinity });
+
+          return {
+            ...item,
+            stockLength: bestStock.stock,
+            waste: bestStock.waste,
+          };
+        });
+
+        return optimized;
+      },
+
+      completeLessonSlice: (sliceId: string, photos?: string[], notes?: string) => {
+        const { projectSlices } = get();
+        const updatedSlices = projectSlices.map(slice => 
+          slice.id === sliceId 
+            ? { 
+                ...slice, 
+                isCompleted: true, 
+                completedPhotos: photos || slice.completedPhotos,
+                notes: notes || slice.notes 
+              }
+            : slice
+        );
+
+        set({ projectSlices: updatedSlices });
+      },
+
+      updateProjectProgress: (projectId: string, progress: any) => {
+        // Update project progress in Firestore
+        try {
+          const { user } = useAuthStore.getState();
+          if (user?.uid) {
+            firestoreService.updateUserProgress(user.uid, { [projectId]: progress });
+          }
+        } catch (error) {
+          console.error('Error updating project progress:', error);
+        }
+      },
+
+      // Offline content management
+      downloadProjectBundle: async (projectId) => {
+        const project = woodworkingProjects.find(p => p.id === projectId);
+        if (!project) {
+          console.error('Project not found for offline bundle:', projectId);
+          return;
+        }
+
+        set({ isDownloading: true });
+        try {
+          // Simulate downloading content
+          const bundle: OfflineBundle = {
+            id: `bundle-${projectId}-${Date.now()}`,
+            projectId: projectId,
+            title: project.title,
+            description: project.description,
+            size: 2.5, // Simulated size in MB
+            downloadProgress: 0,
+            isDownloaded: false,
+            lastUpdated: new Date(),
+            content: {
+              projectPlan: {
+                id: `plan-${projectId}`,
+                projectId: projectId,
+                title: project.title,
+                description: project.description,
+                estimatedTime: project.estimatedTime,
+                difficulty: project.difficulty,
+                materials: project.materials.map((material, index) => ({
+                  id: `mat-${index}`,
+                  name: material,
+                  type: 'wood',
+                  quantity: 1,
+                  unit: 'piece',
+                })),
+                tools: project.tools.map((tool, index) => ({
+                  id: `tool-${index}`,
+                  name: tool,
+                  type: 'hand',
+                  required: true,
+                })),
+                cutList: [],
+                lessonSlices: project.lessonSlices,
+                notes: '',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+              lessonSlices: project.lessonSlices.map((slice, index) => ({
+                id: slice.id,
+                projectId: projectId,
+                title: slice.title,
+                description: slice.description,
+                type: slice.type,
+                duration: slice.duration,
+                steps: slice.steps,
+                successCriteria: slice.successCriteria,
+                photoCheckRequired: slice.photoCheckRequired,
+                cutList: [],
+                materials: [],
+                tools: [],
+                isCompleted: false,
+                completedPhotos: [],
+                notes: '',
+                order: index + 1,
+              })),
+              cutLists: [],
+              materials: [],
+              tools: [],
+              images: [],
+            },
+          };
+
+          // Simulate download progress
+          for (let i = 0; i <= 100; i += 10) {
+            bundle.downloadProgress = i;
+            set({ offlineBundles: [...get().offlineBundles, { ...bundle }] });
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+
+          bundle.isDownloaded = true;
+          bundle.downloadProgress = 100;
+          
+          const updatedBundles = get().offlineBundles.map(b => 
+            b.id === bundle.id ? bundle : b
+          );
+          set({ offlineBundles: updatedBundles });
+          
+          // Store in local storage
+          try {
+            zuStandStorage.setItem('offlineBundles', JSON.stringify(updatedBundles));
+          } catch (error) {
+            console.error('Error saving offline bundles to storage:', error);
+          }
+          
+          console.log('Project bundle downloaded:', bundle.id);
+        } catch (error) {
+          console.error('Error downloading project bundle:', error);
+        } finally {
+          set({ isDownloading: false });
+        }
+      },
+
+      removeOfflineBundle: (bundleId) => {
+        const { offlineBundles } = get();
+        const updatedBundles = offlineBundles.filter(bundle => bundle.id !== bundleId);
+        set({ offlineBundles: updatedBundles });
+        
+        // Update local storage
+        try {
+          zuStandStorage.setItem('offlineBundles', JSON.stringify(updatedBundles));
+        } catch (error) {
+          console.error('Error updating offline bundles in storage:', error);
+        }
+        
+        console.log('Offline bundle removed:', bundleId);
+      },
+
+      getOfflineBundles: () => {
+        return get().offlineBundles;
+      },
+
+      isProjectOffline: (projectId) => {
+        return get().offlineBundles.some(bundle => bundle.projectId === projectId);
       },
     }),
     {

@@ -158,20 +158,6 @@ export default function AICoach() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <IconSymbol name="brain.head.profile" size={24} color={Colors[colorScheme ?? 'light'].tint} />
-          <Text style={[styles.headerTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-            AI Coach
-          </Text>
-        </View>
-        <Text style={[styles.headerSubtitle, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
-          Your personal woodworking mentor
-        </Text>
-      </View>
-
-      {renderTipDetail()}
-
       <View style={styles.tipsSection}>
         <View style={styles.tipsHeader}>
           <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
@@ -184,7 +170,30 @@ export default function AICoach() {
           </TouchableOpacity>
         </View>
         
-        {displayedTips.map(renderTipCard)}
+        {displayedTips.map((tip) => {
+          // If this tip is selected, show the detail modal instead of the card
+          if (selectedTip && selectedTip.id === tip.id) {
+            return (
+              <View key={tip.id} style={[styles.tipCard, { borderWidth: 0 }]}>
+                {renderTipDetail()}
+              </View>
+            );
+          }
+          // Otherwise show the normal tip card
+          return renderTipCard(tip);
+        })}
+      </View>
+
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <IconSymbol name="brain.head.profile" size={24} color={Colors[colorScheme ?? 'light'].tint} />
+          <Text style={[styles.headerTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+            AI Coach
+          </Text>
+        </View>
+        <Text style={[styles.headerSubtitle, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
+          Your personal woodworking mentor
+        </Text>
       </View>
 
       <View style={styles.quickActions}>
@@ -298,6 +307,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 8,
+  },
+  tipDetailText: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 20,
   },
   tipActions: {
     flexDirection: 'row',

@@ -1,3 +1,4 @@
+import { FontFamilies } from '@/hooks/AppFonts';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -15,30 +16,59 @@ export function Header({ title, subtitle, showSafeArea = true, backgroundColor =
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.header, showSafeArea && { paddingTop: insets.top, backgroundColor: backgroundColor ? backgroundColor : 'transparent' }]}>
-      <Text style={[styles.title, { color: colors?.text || '#1a1a1a' }]}>
-        {title}
-      </Text>
-      {subtitle && (
-        <Text style={[styles.subtitle, { color: colors?.tabIconDefault || '#666' }]}>
-          {subtitle}
+    <View style={[
+      styles.header, 
+      { 
+        backgroundColor: backgroundColor ? backgroundColor : 'transparent' 
+      }
+    ]}>
+      <View style={styles.headerContent}>
+        <Text style={[styles.title, { color: colors?.text || '#1a1a1a' }]}>
+          {title}
         </Text>
-      )}
+        {subtitle && (
+          <Text style={[styles.subtitle, { color: colors?.tabIconDefault || '#666' }]}>
+            {subtitle}
+          </Text>
+        )}
+      </View>
+      
+      {/* Decorative accent line */}
+      <View style={[styles.accentLine, { backgroundColor: colors?.tint || '#007AFF' }]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
-    padding: 20,
-    paddingTop: 10,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    backgroundColor: 'transparent',
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10},
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  headerContent: {
+    gap: 6,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontWeight: '700',
+    fontFamily: FontFamilies.featherBold,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 17,
+    fontFamily: FontFamilies.dinRounded,
+    opacity: 0.8,
+    fontWeight: '500',
+  },
+  accentLine: {
+    height: 3,
+    borderRadius: 1.5,
+    width: 60,
+    marginTop: 10,
   },
 });

@@ -338,7 +338,6 @@ export default function CoachScreen() {
     <View style={[styles.container, { paddingBottom: insets.bottom + 34, paddingTop: insets.top }]}>
       <View style={styles.headerContainer}>
         <Header 
-          backgroundColor={'red'}
           title="AI Coach" 
           subtitle="Your personal woodworking mentor"
           showSafeArea={false}
@@ -401,6 +400,14 @@ export default function CoachScreen() {
 }
 
 const styles = StyleSheet.create({
+  statusBarBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 44, // Status bar height
+    zIndex: 1000,
+  },
   container: {
     flex: 1,
     backgroundColor: '#fafafa',

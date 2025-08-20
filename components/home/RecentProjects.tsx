@@ -1,0 +1,166 @@
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { FontFamilies } from '@/hooks/AppFonts';
+import React from 'react';
+import {
+    Dimensions,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+
+const { width } = Dimensions.get('window');
+
+interface Project {
+  id: string;
+  title: string;
+  difficulty: string;
+  isStarted: boolean;
+  progress: number;
+}
+
+interface RecentProjectsProps {
+  recentProjects: Project[];
+  onProjectPress: (project: Project) => void;
+  onViewAllProjects: () => void;
+}
+
+export default function RecentProjects({ 
+  recentProjects, 
+  onProjectPress, 
+  onViewAllProjects 
+}: RecentProjectsProps) {
+  const getSkillColor = (index: number) => {
+    const colors = ['#FF6B35', '#1CB0F6', '#58CC02', '#FF9600', '#CE82FF', '#A274FF'];
+    return colors[index % colors.length];
+  };
+
+  return (
+    <View style={styles.recentProjectsSection}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>
+          Recent Projects
+        </Text>
+        <TouchableOpacity onPress={onViewAllProjects}>
+          <Text style={styles.viewAllButton}>View All</Text>
+        </TouchableOpacity>
+      </View>
+      
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.projectsScrollView}>
+        {recentProjects.map((project, index) => (
+          <TouchableOpacity
+            key={project.id}
+            style={styles.projectCard}
+            onPress={() => onProjectPress(project)}
+          >
+            <View style={[styles.projectIcon, { backgroundColor: getSkillColor(index) }]}>
+              <IconSymbol name="hammer.fill" size={24} color="white" />
+            </View>
+            <Text style={styles.projectTitle} numberOfLines={2}>
+              {project.title}
+            </Text>
+            <Text style={styles.projectDifficulty}>
+              {project.difficulty}
+            </Text>
+            {project.isStarted && (
+              <View style={styles.projectProgress}>
+                <View style={styles.projectProgressBar}>
+                  <View 
+                    style={[
+                      styles.projectProgressFill,
+                      { width: `${project.progress}%` }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.projectProgressText}>{project.progress}%</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  recentProjectsSection: {
+    marginBottom: 30,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: FontFamilies.featherBold,
+    color: '#000000',
+  },
+  viewAllButton: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#1CB0F6',
+    textDecorationLine: 'underline',
+  },
+  projectsScrollView: {
+    paddingHorizontal: 20,
+  },
+  projectCard: {
+    width: width * 0.7, // Adjust as needed
+    height: 120,
+    borderRadius: 12,
+    marginRight: 12,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  projectIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  projectTitle: {
+    fontSize: 16,
+    fontFamily: FontFamilies.featherBold,
+    marginBottom: 4,
+    color: '#000000',
+  },
+  projectDifficulty: {
+    fontSize: 12,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+  },
+  projectProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  projectProgressBar: {
+    width: '100%',
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E5E5E5',
+    overflow: 'hidden',
+  },
+  projectProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  projectProgressText: {
+    fontSize: 12,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    marginLeft: 8,
+  },
+});

@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import {
   Dimensions,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -311,12 +312,14 @@ export default function LearnScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+            <StatusBar translucent backgroundColor={'transparent'} />
         <Header 
-          title="Woodworking Skills" 
+          title="Skills" 
           subtitle="Master the craft, one skill at a time"
           showSafeArea={false}
         />
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      
         
         <View style={styles.skillTree}>
           {renderConnections()}
@@ -407,6 +410,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    paddingTop: 10, // Add top padding to account for fixed header with safe area
     paddingBottom: 100,
   },
   skillTree: {
