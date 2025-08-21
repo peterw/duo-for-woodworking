@@ -31,7 +31,7 @@ export default function LessonSlice({ slice, isCompleted = false, onComplete }: 
       case 'finishing': return '#45B7D1';
       case 'safety': return '#FFEAA7';
       case 'planning': return '#96CEB4';
-      default: return Colors[colorScheme ?? 'light'].tint;
+      default: return Colors[colorScheme ?? 'light'].primary;
     }
   };
 
@@ -148,7 +148,7 @@ export default function LessonSlice({ slice, isCompleted = false, onComplete }: 
           </View>
           {slice.photoCheckRequired && (
             <View style={styles.photoCheck}>
-              <IconSymbol name="camera.fill" size={14} color={Colors[colorScheme ?? 'light'].tint} />
+              <IconSymbol name="camera.fill" size={14} color={Colors[colorScheme ?? 'light'].primary} />
             </View>
           )}
           <IconSymbol 
@@ -174,7 +174,7 @@ export default function LessonSlice({ slice, isCompleted = false, onComplete }: 
             </Text>
             {slice.successCriteria.map((criterion, index) => (
               <View key={index} style={styles.criterionItem}>
-                <IconSymbol name="checkmark.circle" size={16} color={Colors[colorScheme ?? 'light'].tint} />
+                <IconSymbol name="checkmark.circle" size={16} color={Colors[colorScheme ?? 'light'].primary} />
                 <Text style={[styles.criterionText, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
                   {criterion}
                 </Text>
@@ -185,7 +185,7 @@ export default function LessonSlice({ slice, isCompleted = false, onComplete }: 
           {slice.photoCheckRequired && (
             <View style={styles.photoCheckSection}>
               <View style={styles.photoCheckHeader}>
-                <IconSymbol name="camera.fill" size={20} color={Colors[colorScheme ?? 'light'].tint} />
+                <IconSymbol name="camera.fill" size={20} color={Colors[colorScheme ?? 'light'].primary} />
                 <Text style={[styles.photoCheckTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
                   Photo Check Required
                 </Text>
@@ -193,7 +193,7 @@ export default function LessonSlice({ slice, isCompleted = false, onComplete }: 
               <Text style={[styles.photoCheckDescription, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
                 Take a photo of your work to verify completion and get feedback.
               </Text>
-              <TouchableOpacity style={[styles.photoButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
+              <TouchableOpacity style={[styles.photoButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
                 <IconSymbol name="camera.fill" size={16} color="white" />
                 <Text style={styles.photoButtonText}>Take Photo</Text>
               </TouchableOpacity>

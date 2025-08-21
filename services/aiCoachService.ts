@@ -62,21 +62,29 @@ Your expertise areas include:
 
 Provide detailed, practical, and actionable advice. Always prioritize safety first. Give specific examples, tool recommendations, and step-by-step guidance when appropriate. Keep responses conversational and encouraging, but professional and accurate.
 
+IMPORTANT: Structure your responses in a clear, easy-to-follow format:
+1. Start with a brief, encouraging introduction
+2. Provide step-by-step instructions when applicable
+3. Include specific tool recommendations with reasons
+4. Highlight safety considerations prominently
+5. End with pro tips and common mistakes to avoid
+6. Keep the tone friendly but professional
+
 Current question category: ${analysis.category}
 Difficulty level: ${analysis.difficulty}`;
 
     // Create the user message
     const userMessage = `Please provide a comprehensive answer to this woodworking question: "${question}"
 
-Please include:
-1. Specific techniques and methods
-2. Tool recommendations if relevant
-3. Safety considerations
-4. Step-by-step instructions if applicable
-5. Tips for success
+Please structure your response as follows:
+1. Brief introduction and encouragement
+2. Specific techniques and methods (step-by-step if applicable)
+3. Tool recommendations with explanations
+4. Safety considerations (emphasize this)
+5. Pro tips for success
 6. Common mistakes to avoid
 
-Make your response detailed but easy to follow for a ${analysis.difficulty} level woodworker.`;
+Make your response detailed but easy to follow for a ${analysis.difficulty} level woodworker. Use bullet points or numbered lists when helpful.`;
 
     // Call OpenRouter API
     console.log('Calling OpenRouter API with key:', OPENROUTER_API_KEY.substring(0, 10) + '...');
@@ -95,7 +103,7 @@ Make your response detailed but easy to follow for a ${analysis.difficulty} leve
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
         ],
-        max_tokens: 1000,
+        max_tokens: 1200,
         temperature: 0.7,
         top_p: 1,
         frequency_penalty: 0,

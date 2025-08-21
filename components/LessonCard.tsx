@@ -13,6 +13,9 @@ interface LessonCardProps {
   onPress: () => void;
   isCompleted?: boolean;
   isLocked?: boolean;
+  lessonsCompleted?: number;
+  totalLessons?: number;
+  unlockRequirement?: string;
 }
 
 export const LessonCard: React.FC<LessonCardProps> = ({
@@ -24,6 +27,9 @@ export const LessonCard: React.FC<LessonCardProps> = ({
   onPress,
   isCompleted = false,
   isLocked = false,
+  lessonsCompleted = 0,
+  totalLessons = 1,
+  unlockRequirement = "Complete previous lessons to unlock",
 }) => {
   const getDifficultyColor = () => {
     switch (difficulty) {
@@ -88,6 +94,12 @@ export const LessonCard: React.FC<LessonCardProps> = ({
 
       {/* Progress Bar */}
       <View style={styles.progressContainer}>
+        <View style={styles.progressInfo}>
+          <Text style={styles.progressLabel}>Progress</Text>
+          <Text style={styles.progressText}>
+            {lessonsCompleted > 0 ? `${lessonsCompleted}/${totalLessons} lessons` : `${progress}%`}
+          </Text>
+        </View>
         <View style={ComponentStyles.progressBar.container}>
           <View
             style={[
@@ -96,7 +108,6 @@ export const LessonCard: React.FC<LessonCardProps> = ({
             ]}
           />
         </View>
-        <Text style={styles.progressText}>{progress}%</Text>
       </View>
 
       {/* Footer */}
@@ -121,7 +132,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
       {isLocked && (
         <View style={styles.lockedOverlay}>
           <IconSymbol name="lock.fill" size={32} color={Colors.gray400} />
-          <Text style={styles.lockedText}>Complete previous lessons to unlock</Text>
+          <Text style={styles.lockedText}>{unlockRequirement}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -158,10 +169,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
     marginBottom: Spacing.md,
+  },
+  progressInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  progressLabel: {
+    fontFamily: FontFamilies.dinRounded,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.textTertiary,
+    fontWeight: '500',
   },
   progressText: {
     fontFamily: FontFamilies.dinRounded,

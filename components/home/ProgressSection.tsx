@@ -2,9 +2,9 @@ import { FontFamilies } from '@/hooks/AppFonts';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
-    StyleSheet,
-    Text,
-    View,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 interface ProgressSectionProps {
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: FontFamilies.featherBold,
     marginBottom: 16,
     paddingHorizontal: 20,

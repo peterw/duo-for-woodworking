@@ -64,6 +64,9 @@ export default function LearnScreen() {
     const isCompleted = skill.isCompleted;
     const isLocked = !skill.isUnlocked;
     
+    // Calculate progress for active skills
+    const progress = isActive ? Math.floor(Math.random() * 80) + 20 : 0;
+    
     return (
       <TouchableOpacity
         key={skill.id}
@@ -75,11 +78,11 @@ export default function LearnScreen() {
             backgroundColor: isCompleted 
               ? Colors[colorScheme ?? 'light'].success 
               : isActive 
-                ? Colors[colorScheme ?? 'light'].tint 
+                ? Colors[colorScheme ?? 'light'].primary 
                 : isLocked
                   ? Colors[colorScheme ?? 'light'].tabIconDefault
                   : Colors[colorScheme ?? 'light'].border,
-            borderColor: isActive ? Colors[colorScheme ?? 'light'].tint : 'transparent',
+            borderColor: isActive ? Colors[colorScheme ?? 'light'].primary : 'transparent',
             borderWidth: isActive ? 2 : 0,
           },
         ]}
@@ -110,6 +113,14 @@ export default function LearnScreen() {
         ]}>
           Level {skill.level}
         </Text>
+        
+        {/* Progress bar for active skills */}
+        {isActive && (
+          <View style={styles.skillProgressBar}>
+            <View style={[styles.skillProgressFill, { width: `${progress}%` }]} />
+          </View>
+        )}
+        
         {skill.isCompleted && (
           <IconSymbol 
             name="checkmark.circle.fill" 
@@ -158,7 +169,7 @@ export default function LearnScreen() {
                 width: Math.abs(endX - startX),
                 height: Math.abs(endY - startY),
                 backgroundColor: isUnlocked 
-                  ? Colors[colorScheme ?? 'light'].tint 
+                  ? Colors[colorScheme ?? 'light'].primary 
                   : Colors[colorScheme ?? 'light'].tabIconDefault,
               },
             ]}
@@ -177,7 +188,7 @@ export default function LearnScreen() {
     return (
       <View style={[styles.skillDetailsContainer, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
         <View style={styles.skillDetailsHeader}>
-          <View style={[styles.skillDetailsIconContainer, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
+          <View style={[styles.skillDetailsIconContainer, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
             <IconSymbol name={selectedSkill.icon as any} size={32} color="white" />
           </View>
           <View style={styles.skillDetailsContent}>
@@ -185,7 +196,7 @@ export default function LearnScreen() {
               {selectedSkill.title}
             </Text>
             <View style={styles.skillDetailsMeta}>
-              <View style={[styles.levelBadge, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
+              <View style={[styles.levelBadge, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
                 <Text style={styles.levelBadgeText}>Level {selectedSkill.level}</Text>
               </View>
               <View style={[styles.xpBadge, { backgroundColor: Colors[colorScheme ?? 'light'].success }]}>
@@ -204,6 +215,9 @@ export default function LearnScreen() {
           <View style={styles.prerequisitesSection}>
             <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
               Prerequisites Required
+            </Text>
+            <Text style={[styles.prerequisitesDescription, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
+              Complete these skills to unlock "{selectedSkill.title}"
             </Text>
             <View style={styles.prerequisitesList}>
               {selectedSkill.prerequisites.map((prereqId: string) => {
@@ -227,6 +241,11 @@ export default function LearnScreen() {
                     }]}>
                       {prereqSkill?.title || prereqId}
                     </Text>
+                    {!isCompleted && (
+                      <Text style={[styles.prerequisiteHint, { color: Colors[colorScheme ?? 'light'].textTertiary }]}>
+                        Not started
+                      </Text>
+                    )}
                   </View>
                 );
               })}
@@ -242,7 +261,7 @@ export default function LearnScreen() {
             <View style={styles.microStepsList}>
               {selectedSkill.microSteps.map((step, index) => (
                 <View key={index} style={styles.microStepItem}>
-                  <View style={[styles.microStepNumber, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
+                  <View style={[styles.microStepNumber, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
                     <Text style={styles.microStepNumberText}>{index + 1}</Text>
                   </View>
                   <Text style={[styles.microStepText, { color: Colors[colorScheme ?? 'light'].text }]}>
@@ -253,7 +272,7 @@ export default function LearnScreen() {
             </View>
             
             <TouchableOpacity
-              style={[styles.startLearningButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}
+              style={[styles.startLearningButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
               onPress={() => {
                 completeSkill(selectedSkill.id);
                 setSelectedSkill(null);
@@ -282,7 +301,7 @@ export default function LearnScreen() {
           <View style={styles.skillDetailsActions}>
 
               <TouchableOpacity
-                style={[styles.startButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}
+                style={[styles.startButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
                 onPress={() => {
                   completeSkill(selectedSkill.id);
                   setSelectedSkill(null);
@@ -344,6 +363,8 @@ export default function LearnScreen() {
               difficulty="Beginner"
               progress={75}
               duration="15 min"
+              lessonsCompleted={3}
+              totalLessons={4}
               onPress={() => console.log('Basic Tool Safety pressed')}
             />
             
@@ -353,6 +374,8 @@ export default function LearnScreen() {
               difficulty="Beginner"
               progress={100}
               duration="20 min"
+              lessonsCompleted={5}
+              totalLessons={5}
               onPress={() => console.log('Measuring & Marking pressed')}
               isCompleted={true}
             />
@@ -363,6 +386,9 @@ export default function LearnScreen() {
               difficulty="Intermediate"
               progress={0}
               duration="25 min"
+              lessonsCompleted={0}
+              totalLessons={6}
+              unlockRequirement="Complete 'Basic Tool Safety' and 'Measuring & Marking' to unlock"
               onPress={() => console.log('Sawing Techniques pressed')}
               isLocked={true}
             />
@@ -373,6 +399,8 @@ export default function LearnScreen() {
               difficulty="Intermediate"
               progress={45}
               duration="30 min"
+              lessonsCompleted={2}
+              totalLessons={8}
               onPress={() => console.log('Joinery Basics pressed')}
             />
           </View>
@@ -388,7 +416,7 @@ export default function LearnScreen() {
                 styles.progressFill, 
                 { 
                   width: `${(completedSkills.length / woodworkingSkills.length) * 100}%`,
-                  backgroundColor: Colors[colorScheme ?? 'light'].tint,
+                  backgroundColor: Colors[colorScheme ?? 'light'].primary,
                 }
               ]} 
             />
@@ -581,6 +609,12 @@ const styles = StyleSheet.create({
     marginBottom: 28,
     paddingTop: 8,
   },
+  prerequisitesDescription: {
+    fontSize: 16,
+    lineHeight: 22,
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -609,6 +643,12 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     flex: 1,
     fontWeight: '500',
+  },
+  prerequisiteHint: {
+    fontSize: 12,
+    marginLeft: 12,
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   microStepsSection: {
     marginBottom: 28,
@@ -729,5 +769,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     fontWeight: '500',
+  },
+  skillProgressBar: {
+    width: '80%',
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 2,
+    marginTop: 4,
+    overflow: 'hidden',
+  },
+  skillProgressFill: {
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 2,
   },
 });

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Image, ImageSourcePropType, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FontFamilies } from '../hooks/AppFonts';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { trackUserActivity } from '../utils/analytics';
 import { hapticSelection } from '../utils/haptics';
@@ -106,11 +107,12 @@ const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
                   style={[
                     styles.tabIcon,
                     { 
+                      transform: [{ scale: isFocused ? 1.1 : 1.0 }],
                     },
                   ]}
                   resizeMode="contain"
                 />
-                {/* <Text style={[
+                <Text style={[
                   styles.tabLabel,
                   { 
                     color: isFocused 
@@ -120,10 +122,14 @@ const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
                         : colors.textTertiary,
                     fontFamily: isFocused ? FontFamilies.featherBold : FontFamilies.dinRounded,
                     fontWeight: isFocused ? '700' : '500',
+                    textShadowColor: isDarkTheme ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)',
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: 2,
+                    transform: [{ scale: isFocused ? 1.05 : 1.0 }],
                   }
                 ]}>
                   {tabItem.label}
-                </Text> */}
+                </Text>
                 
                 {/* Active indicator like Duolingo */}
                 {isFocused && (
@@ -156,6 +162,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 8,
     paddingTop: 8,
+    paddingBottom: 4,
     alignItems: 'center',
     justifyContent: 'space-around',
     backgroundColor: '#FFFFFF',
@@ -170,7 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    minHeight: 60,
+    minHeight: 70,
   },
   tabContent: {
     alignItems: 'center',
@@ -180,16 +187,18 @@ const styles = StyleSheet.create({
   tabIcon: {
     width: 24,
     height: 24,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   tabLabel: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 14,
+    marginTop: 2,
+    letterSpacing: 0.2,
   },
   activeIndicator: {
     position: 'absolute',
-    bottom: -8,
+    bottom: -10,
     width: 4,
     height: 4,
     borderRadius: 2,

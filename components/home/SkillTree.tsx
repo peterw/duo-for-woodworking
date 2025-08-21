@@ -56,7 +56,9 @@ export default function SkillTree({ skills, onSkillPress, onViewAllSkills }: Ski
               disabled={skill.isLocked}
             >
               {skill.isLocked ? (
-                <IconSymbol name="lock.fill" size={24} color="white" />
+                <View style={styles.lockedIconContainer}>
+                  <IconSymbol name="lock.fill" size={20} color="#999999" />
+                </View>
               ) : skill.isCompleted ? (
                 <IconSymbol name="checkmark" size={24} color="white" />
               ) : (
@@ -72,21 +74,34 @@ export default function SkillTree({ skills, onSkillPress, onViewAllSkills }: Ski
               ]}>
                 {skill.title}
               </Text>
-              <Text style={styles.skillDescription}>
-                {skill.description}
+              <Text style={[
+                styles.skillDescription,
+                skill.isLocked && styles.skillDescriptionLocked
+              ]}>
+                {skill.isLocked 
+                  ? `Complete "${skills[index - 1]?.title || 'previous skill'}" to unlock`
+                  : skill.description
+                }
               </Text>
               
-              {/* Crowns like Duolingo */}
-              <View style={styles.crownsContainer}>
-                {[1, 2, 3, 4, 5].map((crown) => (
-                  <IconSymbol
-                    key={crown}
-                    name={skill.crowns >= crown ? "crown.fill" : "crown"}
-                    size={16}
-                    color={skill.crowns >= crown ? "#FFD700" : "#E5E5E5"}
-                    style={styles.crownIcon}
-                  />
-                ))}
+              {/* Skill details */}
+              <View style={styles.skillDetails}>
+                <View style={styles.crownsContainer}>
+                  {[1, 2, 3, 4, 5].map((crown) => (
+                    <IconSymbol
+                      key={crown}
+                      name={skill.crowns >= crown ? "crown.fill" : "crown"}
+                      size={16}
+                      color={skill.crowns >= crown ? "#FFD700" : "#E5E5E5"}
+                      style={styles.crownIcon}
+                    />
+                  ))}
+                </View>
+                {!skill.isLocked && (
+                  <Text style={styles.lessonCount}>
+                    {skill.lessons} {skill.lessons === 1 ? 'lesson' : 'lessons'}
+                  </Text>
+                )}
               </View>
             </View>
             
@@ -112,7 +127,10 @@ export default function SkillTree({ skills, onSkillPress, onViewAllSkills }: Ski
             {index < skills.length - 1 && (
               <View style={[
                 styles.connectionLine,
-                { backgroundColor: skills[index + 1].isLocked ? '#E5E5E5' : '#58CC02' }
+                { 
+                  backgroundColor: skills[index + 1].isLocked ? '#E5E5E5' : '#58CC02',
+                  opacity: skills[index + 1].isLocked ? 0.3 : 1
+                }
               ]} />
             )}
           </View>
@@ -124,7 +142,25 @@ export default function SkillTree({ skills, onSkillPress, onViewAllSkills }: Ski
 
 const styles = StyleSheet.create({
   skillTreeContainer: {
-    marginBottom: 30,
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontFamily: FontFamilies.featherBold,
+    color: '#000000',
+  },
+  viewAllButton: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#1CB0F6',
+    textDecorationLine: 'underline',
   },
   skillTree: {
     paddingHorizontal: 20,
@@ -132,8 +168,9 @@ const styles = StyleSheet.create({
   skillRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 28,
     position: 'relative',
+    paddingVertical: 8,
   },
   skillCircle: {
     width: 60,
@@ -141,7 +178,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -149,31 +186,58 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   skillCircleLocked: {
-    backgroundColor: '#999999',
-    opacity: 0.6,
+    backgroundColor: '#F5F5F5',
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
   },
-
+  lockedIconContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
   skillInfo: {
     flex: 1,
+    paddingRight: 16,
   },
   skillTitle: {
     fontSize: 18,
     fontFamily: FontFamilies.featherBold,
-    marginBottom: 4,
+    marginBottom: 6,
     color: '#000000',
+    lineHeight: 22,
   },
   skillTitleLocked: {
     color: '#999999',
   },
   skillDescription: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: FontFamilies.dinRounded,
-    marginBottom: 8,
+    marginBottom: 12,
     color: '#666666',
+    lineHeight: 20,
+  },
+  skillDescriptionLocked: {
+    color: '#999999',
+    fontStyle: 'italic',
+    fontWeight: '500',
+  },
+  skillDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
   },
   crownsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  lessonCount: {
+    fontSize: 12,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#58CC02',
+    fontWeight: '500',
   },
   crownIcon: {
     marginRight: 2,
@@ -206,25 +270,7 @@ const styles = StyleSheet.create({
     left: 29,
     top: 60,
     width: 2,
-    height: 20,
+    height: 28,
     backgroundColor: '#58CC02',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: FontFamilies.featherBold,
-    color: '#000000',
-  },
-  viewAllButton: {
-    fontSize: 14,
-    fontFamily: FontFamilies.dinRounded,
-    color: '#1CB0F6',
-    textDecorationLine: 'underline',
   },
 });

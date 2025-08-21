@@ -12,7 +12,7 @@ export const Colors = {
     backgroundSecondary: '#f8f9fa',
     backgroundTertiary: '#f1f3f4',
     tint: tintColorLight,
-    primary: tintColorLight,
+    primary: "#58CC02",
     icon: '#687076',
     tabIconDefault: '#687076',
     tabIconSelected: tintColorLight,
@@ -55,7 +55,7 @@ export const Colors = {
     white: '#ffffff',
     success: '#4CAF50',
     error: '#F44336',
-    border: '#2C2C2E',
+    border: '#404040',
     // Wood theme colors for tab bar
     tabBarBackground: '#8B4513',
     tabBarActiveBackground: 'rgba(255, 255, 255, 0.15)',

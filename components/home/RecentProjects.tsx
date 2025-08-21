@@ -2,12 +2,12 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
 import React from 'react';
 import {
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -85,17 +85,17 @@ export default function RecentProjects({
 
 const styles = StyleSheet.create({
   recentProjectsSection: {
-    marginBottom: 30,
+    marginBottom: 32,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
     paddingHorizontal: 20,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: FontFamilies.featherBold,
     color: '#000000',
   },
@@ -110,9 +110,9 @@ const styles = StyleSheet.create({
   },
   projectCard: {
     width: width * 0.7, // Adjust as needed
-    height: 120,
     borderRadius: 12,
-    marginRight: 12,
+    marginRight: 16,
+    marginVertical: 8,
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 20,
   },
   projectIcon: {
     width: 40,
@@ -145,9 +145,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
+    marginRight: 8,
   },
   projectProgressBar: {
-    width: '100%',
+    width: '85%',
     height: 6,
     borderRadius: 3,
     backgroundColor: '#E5E5E5',
