@@ -4,10 +4,10 @@ import { Colors } from '@/constants/Colors';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useUserProgressStore } from '@/stores';
+import { useRouter } from 'expo-router';
 
 import React, { useState } from 'react';
 import {
-  Alert,
   Dimensions,
   ScrollView,
   StatusBar,
@@ -22,11 +22,9 @@ const { width } = Dimensions.get('window');
 
 export default function LearnScreen() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
   const { completedSkills, completeSkill } = useUserProgressStore();
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
-  const [showLessonContent, setShowLessonContent] = useState(false);
-  const [currentLesson, setCurrentLesson] = useState<any>(null);
-  const [lessonProgress, setLessonProgress] = useState(0);
 
   // Duolingo-style lesson data with proper state management
   const lessons = [
@@ -120,154 +118,25 @@ export default function LearnScreen() {
     },
   ];
 
-  // Lesson content data
-  const lessonContent = {
-    'start': {
-      title: 'Welcome to Woodworking!',
-      steps: [
-        'Welcome to your woodworking journey!',
-        'Learn the basics of working with wood',
-        'Understand safety first approach',
-        'Get familiar with essential tools'
-      ],
-      questions: [
-        {
-          question: 'What is the most important aspect of woodworking?',
-          options: ['Speed', 'Safety', 'Cost', 'Tools'],
-          correct: 1
-        }
-      ]
-    },
-    'tool-safety': {
-      title: 'Tool Safety Fundamentals',
-      steps: [
-        'Always wear safety glasses',
-        'Keep tools sharp and clean',
-        'Use proper grip and stance',
-        'Never rush your work'
-      ],
-      questions: [
-        {
-          question: 'When should you wear safety glasses?',
-          options: ['Only when cutting', 'Always in the workshop', 'Never', 'Only with power tools'],
-          correct: 1
-        }
-      ]
-    },
-    'measuring': {
-      title: 'Precision Measuring',
-      steps: [
-        'Use the right measuring tool',
-        'Measure twice, cut once',
-        'Mark clearly with pencil',
-        'Check your measurements'
-      ],
-      questions: [
-        {
-          question: 'What is the golden rule of measuring?',
-          options: ['Measure once', 'Measure twice, cut once', 'Guess and check', 'Use any tool'],
-          correct: 1
-        }
-      ]
-    },
-    'sawing': {
-      title: 'Sawing Techniques',
-      steps: [
-        'Choose the right saw for the job',
-        'Mark your cut line clearly',
-        'Use proper sawing motion',
-        'Support your workpiece properly'
-      ],
-      questions: [
-        {
-          question: 'What should you do before making a cut?',
-          options: ['Start cutting immediately', 'Mark the cut line', 'Use any saw', 'Cut freehand'],
-          correct: 1
-        }
-      ]
-    },
-    'chest-1': {
-      title: 'Reward Chest!',
-      steps: [
-        'Congratulations on completing the first section!',
-        'You earned 25 XP points',
-        'Unlock new tools and techniques',
-        'Ready for the next challenge!'
-      ],
-      questions: []
-    },
-    'joinery': {
-      title: 'Basic Joinery',
-      steps: [
-        'Learn about different joint types',
-        'Practice making simple joints',
-        'Understand wood grain direction',
-        'Master the basics of gluing'
-      ],
-      questions: [
-        {
-          question: 'What is the strongest type of joint?',
-          options: ['Butt joint', 'Dado joint', 'Dovetail joint', 'Lap joint'],
-          correct: 2
-        }
-      ]
-    },
-    'character-1': {
-      title: 'Meet Owl Master',
-      steps: [
-        'Welcome to advanced techniques!',
-        'Owl Master will guide you',
-        'Learn professional tips and tricks',
-        'Unlock the master craftsman path'
-      ],
-      questions: []
-    },
-    'finishing': {
-      title: 'Wood Finishing Techniques',
-      steps: [
-        'Prepare the wood surface properly',
-        'Choose the right finish for your project',
-        'Apply stain evenly and consistently',
-        'Protect with clear coat or varnish'
-      ],
-      questions: [
-        {
-          question: 'What is the first step in wood finishing?',
-          options: ['Apply stain', 'Sand the surface', 'Apply varnish', 'Choose color'],
-          correct: 1
-        }
-      ]
-    },
-  };
+
 
   const handleStartLesson = (lesson: any) => {
     console.log('Starting lesson:', lesson.title);
-    Alert.alert('Lesson Started!', `Starting ${lesson.title} lesson`);
-    setCurrentLesson(lesson);
-    setLessonProgress(0);
-    setShowLessonContent(true);
+    // Navigate to lesson screen with lesson data
+    router.push({
+      pathname: '/woodworking-project/lesson-screen',
+      params: {
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+        lessonColor: lesson.color,
+        lessonIcon: lesson.icon,
+        lessonType: lesson.type
+      }
+    });
     setSelectedLesson(null);
   };
 
-  const handleLessonComplete = () => {
-    if (currentLesson) {
-      completeSkill(currentLesson.id);
-      Alert.alert(
-        'Lesson Completed! 🎉',
-        `You earned ${currentLesson.xpReward} XP points!`,
-        [
-          {
-            text: 'Continue',
-            onPress: () => {
-              setShowLessonContent(false);
-              setCurrentLesson(null);
-              setLessonProgress(0);
-            }
-          }
-        ]
-      );
-    }
-  };
+
 
     const renderLessonNode = (lesson: any, index: number) => {
     const isCompleted = lesson.isCompleted;
@@ -506,82 +375,7 @@ export default function LearnScreen() {
         </View>
       )}
       
-      {/* Lesson Content Modal - Outside ScrollView */}
-      {showLessonContent && currentLesson && (
-        <View style={styles.lessonContentModal}>
-          <View style={styles.lessonContentContainer}>
-            <View style={styles.lessonContentHeader}>
-              <View style={[styles.lessonContentIcon, { backgroundColor: currentLesson.color }]}>
-                <IconSymbol name={currentLesson.icon} size={32} color="white" />
-        </View>
-              <View style={styles.lessonContentTitleContainer}>
-                <Text style={styles.lessonContentTitle}>
-                  {lessonContent[currentLesson.id as keyof typeof lessonContent]?.title || currentLesson.title}
-          </Text>
-                <Text style={styles.lessonContentSubtitle}>
-                  Step {lessonProgress + 1} of {lessonContent[currentLesson.id as keyof typeof lessonContent]?.steps.length || 1}
-          </Text>
-          </View>
-              <TouchableOpacity
-                style={styles.closeContentButton}
-                onPress={() => {
-                  setShowLessonContent(false);
-                  setCurrentLesson(null);
-                  setLessonProgress(0);
-                }}
-              >
-                <IconSymbol name="xmark" size={20} color="#666" />
-              </TouchableOpacity>
-        </View>
-        
-            <ScrollView style={styles.lessonContentBody}>
-              <View style={styles.lessonStepContainer}>
-                <Text style={styles.lessonStepText}>
-                  {lessonContent[currentLesson.id as keyof typeof lessonContent]?.steps[lessonProgress] || 'Loading...'}
-          </Text>
-              </View>
-              
-              {/* Progress Bar */}
-              <View style={styles.lessonProgressContainer}>
-                <View style={styles.lessonProgressBar}>
-            <View 
-              style={[
-                      styles.lessonProgressFill, 
-                { 
-                        width: `${((lessonProgress + 1) / (lessonContent[currentLesson.id as keyof typeof lessonContent]?.steps.length || 1)) * 100}%`,
-                        backgroundColor: currentLesson.color,
-                }
-              ]} 
-            />
-          </View>
-                <Text style={styles.lessonProgressText}>
-                  {lessonProgress + 1} / {lessonContent[currentLesson.id as keyof typeof lessonContent]?.steps.length || 1}
-          </Text>
-        </View>
-      </ScrollView>
-            
-            <View style={styles.lessonContentActions}>
-              {lessonProgress < (lessonContent[currentLesson.id as keyof typeof lessonContent]?.steps.length || 1) - 1 ? (
-                <TouchableOpacity
-                  style={[styles.nextStepButton, { backgroundColor: currentLesson.color }]}
-                  onPress={() => setLessonProgress(lessonProgress + 1)}
-                >
-                  <Text style={styles.nextStepButtonText}>Next Step</Text>
-                  <IconSymbol name="arrow.right" size={20} color="white" />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.completeLessonButton, { backgroundColor: '#58CC02' }]}
-                  onPress={handleLessonComplete}
-                >
-                  <Text style={styles.completeLessonButtonText}>Complete Lesson</Text>
-                  <IconSymbol name="checkmark.circle.fill" size={20} color="white" />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        </View>
-      )}
+
 
             {/* Bottom Navigation */}
       <View style={styles.bottomNavigation}>
@@ -896,151 +690,5 @@ const styles = StyleSheet.create({
     fontFamily: FontFamilies.dinRounded,
   },
   
-  // Lesson Content Modal Styles
-  lessonContentModal: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 9999,
-    elevation: 10,
-  },
-  lessonContentContainer: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-    width: width - 40,
-    maxHeight: '80%',
-  },
-  lessonContentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  lessonContentIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  lessonContentTitleContainer: {
-    flex: 1,
-  },
-  lessonContentTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 4,
-    fontFamily: FontFamilies.dinRounded,
-  },
-  lessonContentSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    fontFamily: FontFamilies.dinRounded,
-  },
-  closeContentButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F0F0F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  lessonContentBody: {
-    flex: 1,
-    marginBottom: 24,
-  },
-  lessonStepContainer: {
-    backgroundColor: '#F8F9FA',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 20,
-  },
-  lessonStepText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#333',
-    textAlign: 'center',
-    fontFamily: FontFamilies.dinRounded,
-  },
-  lessonProgressContainer: {
-    alignItems: 'center',
-  },
-  lessonProgressBar: {
-    width: '100%',
-    height: 8,
-    backgroundColor: '#E5E5E5',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  lessonProgressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  lessonProgressText: {
-    fontSize: 14,
-    color: '#666',
-    fontFamily: FontFamilies.dinRounded,
-  },
-  lessonContentActions: {
-    gap: 12,
-  },
-  nextStepButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  nextStepButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: FontFamilies.dinRounded,
-  },
-  completeLessonButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  completeLessonButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: FontFamilies.dinRounded,
-  },
+
 });

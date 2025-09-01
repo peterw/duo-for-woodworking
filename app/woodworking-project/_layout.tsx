@@ -11,6 +11,14 @@ export default function WoodworkingProjectLayout() {
           animation: 'slide_from_bottom',
         }}
       />
+      <Stack.Screen
+        name="lesson-screen"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
     </Stack>
   );
 }

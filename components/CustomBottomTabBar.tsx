@@ -53,6 +53,12 @@ const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
       icon: require('../assets/icons/ai.png'),
       activeIcon: require('../assets/icons/ai.png'),
     },
+    {
+      name: 'profile',
+      label: 'Profile',
+      icon: require('../assets/icons/woman.png'),
+      activeIcon: require('../assets/icons/woman.png'),
+    },
   ];
 
   return (
