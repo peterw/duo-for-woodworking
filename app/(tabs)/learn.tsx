@@ -1,12 +1,13 @@
-import { LessonCard } from '@/components/LessonCard';
 import { Header } from '@/components/ui/Header';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useUserProgressStore, woodworkingSkills } from '@/stores';
+import { useUserProgressStore } from '@/stores';
+
 import React, { useState } from 'react';
 import {
+  Alert,
   Dimensions,
   ScrollView,
   StatusBar,
@@ -19,413 +20,611 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
-interface SkillNode {
-  id: string;
-  title: string;
-  description: string;
-  level: number;
-  isUnlocked: boolean;
-  isCompleted: boolean;
-  icon: string;
-  prerequisites: string[];
-  microSteps: string[];
-  xpReward: number;
-  category: string;
-  x: number;
-  y: number;
-}
-
 export default function LearnScreen() {
   const colorScheme = useColorScheme();
-  const { completedSkills, unlockSkill, completeSkill } = useUserProgressStore();
-  const [selectedSkill, setSelectedSkill] = useState<SkillNode | null>(null);
+  const { completedSkills, completeSkill } = useUserProgressStore();
+  const [selectedLesson, setSelectedLesson] = useState<any>(null);
+  const [showLessonContent, setShowLessonContent] = useState(false);
+  const [currentLesson, setCurrentLesson] = useState<any>(null);
+  const [lessonProgress, setLessonProgress] = useState(0);
 
-  // Transform skills from store to match the UI requirements
-  const uiSkills: SkillNode[] = woodworkingSkills.map((skill: any, index: number) => {
-    const isUnlocked = skill.prerequisites.length === 0 || 
-      skill.prerequisites.every((prereq: string) => completedSkills.includes(prereq));
-    const isCompleted = completedSkills.includes(skill.id);
+  // Duolingo-style lesson data with proper state management
+  const lessons = [
+    {
+      id: 'start',
+      title: 'START',
+      type: 'start',
+      isCompleted: completedSkills.includes('start'),
+      isUnlocked: true,
+      icon: 'star.fill',
+      color: '#58CC02',
+      xpReward: 0,
+      description: 'Begin your woodworking journey',
+    },
+    {
+      id: 'tool-safety',
+      title: 'Tool Safety',
+      type: 'lesson',
+      isCompleted: completedSkills.includes('tool-safety'),
+      isUnlocked: true,
+      icon: 'hammer.fill',
+      color: '#FF9600',
+      xpReward: 10,
+      description: 'Learn essential safety practices for using hand tools and power tools',
+    },
+    {
+      id: 'measuring',
+      title: 'Measuring',
+      type: 'lesson',
+      isCompleted: completedSkills.includes('measuring'),
+      isUnlocked: completedSkills.includes('tool-safety'),
+      icon: 'ruler.fill',
+      color: '#FF9600',
+      xpReward: 10,
+      description: 'Master the fundamentals of accurate measurement and marking techniques',
+    },
+    {
+      id: 'sawing',
+      title: 'Sawing',
+      type: 'lesson',
+      isCompleted: completedSkills.includes('sawing'),
+      isUnlocked: completedSkills.includes('measuring'),
+      icon: 'scissors',
+      color: '#FF9600',
+      xpReward: 15,
+      description: 'Learn proper sawing techniques for different types of cuts and materials',
+    },
+    {
+      id: 'chest-1',
+      title: 'Chest',
+      type: 'chest',
+      isCompleted: completedSkills.includes('chest-1'),
+      isUnlocked: completedSkills.includes('sawing'),
+      icon: 'shippingbox.fill',
+      color: '#FF4B4B',
+      xpReward: 25,
+      description: 'Collect your rewards for completing the first section',
+    },
+    {
+      id: 'joinery',
+      title: 'Joinery',
+      type: 'lesson',
+      isCompleted: completedSkills.includes('joinery'),
+      isUnlocked: completedSkills.includes('chest-1'),
+      icon: 'square.stack.3d.up.fill',
+      color: '#FF9600',
+      xpReward: 20,
+      description: 'Explore fundamental woodworking joints and their applications',
+    },
+    {
+      id: 'character-1',
+      title: 'Owl Master',
+      type: 'character',
+      isCompleted: completedSkills.includes('character-1'),
+      isUnlocked: completedSkills.includes('joinery'),
+      icon: 'person.fill',
+      color: '#1CB0F6',
+      xpReward: 0,
+      description: 'Meet your woodworking mentor and unlock new techniques',
+    },
+    {
+      id: 'finishing',
+      title: 'Finishing',
+      type: 'lesson',
+      isCompleted: completedSkills.includes('finishing'),
+      isUnlocked: completedSkills.includes('character-1'),
+      icon: 'paintbrush.fill',
+      color: '#FF9600',
+      xpReward: 25,
+      description: 'Learn wood finishing techniques and surface preparation',
+    },
+  ];
+
+  // Lesson content data
+  const lessonContent = {
+    'start': {
+      title: 'Welcome to Woodworking!',
+      steps: [
+        'Welcome to your woodworking journey!',
+        'Learn the basics of working with wood',
+        'Understand safety first approach',
+        'Get familiar with essential tools'
+      ],
+      questions: [
+        {
+          question: 'What is the most important aspect of woodworking?',
+          options: ['Speed', 'Safety', 'Cost', 'Tools'],
+          correct: 1
+        }
+      ]
+    },
+    'tool-safety': {
+      title: 'Tool Safety Fundamentals',
+      steps: [
+        'Always wear safety glasses',
+        'Keep tools sharp and clean',
+        'Use proper grip and stance',
+        'Never rush your work'
+      ],
+      questions: [
+        {
+          question: 'When should you wear safety glasses?',
+          options: ['Only when cutting', 'Always in the workshop', 'Never', 'Only with power tools'],
+          correct: 1
+        }
+      ]
+    },
+    'measuring': {
+      title: 'Precision Measuring',
+      steps: [
+        'Use the right measuring tool',
+        'Measure twice, cut once',
+        'Mark clearly with pencil',
+        'Check your measurements'
+      ],
+      questions: [
+        {
+          question: 'What is the golden rule of measuring?',
+          options: ['Measure once', 'Measure twice, cut once', 'Guess and check', 'Use any tool'],
+          correct: 1
+        }
+      ]
+    },
+    'sawing': {
+      title: 'Sawing Techniques',
+      steps: [
+        'Choose the right saw for the job',
+        'Mark your cut line clearly',
+        'Use proper sawing motion',
+        'Support your workpiece properly'
+      ],
+      questions: [
+        {
+          question: 'What should you do before making a cut?',
+          options: ['Start cutting immediately', 'Mark the cut line', 'Use any saw', 'Cut freehand'],
+          correct: 1
+        }
+      ]
+    },
+    'chest-1': {
+      title: 'Reward Chest!',
+      steps: [
+        'Congratulations on completing the first section!',
+        'You earned 25 XP points',
+        'Unlock new tools and techniques',
+        'Ready for the next challenge!'
+      ],
+      questions: []
+    },
+    'joinery': {
+      title: 'Basic Joinery',
+      steps: [
+        'Learn about different joint types',
+        'Practice making simple joints',
+        'Understand wood grain direction',
+        'Master the basics of gluing'
+      ],
+      questions: [
+        {
+          question: 'What is the strongest type of joint?',
+          options: ['Butt joint', 'Dado joint', 'Dovetail joint', 'Lap joint'],
+          correct: 2
+        }
+      ]
+    },
+    'character-1': {
+      title: 'Meet Owl Master',
+      steps: [
+        'Welcome to advanced techniques!',
+        'Owl Master will guide you',
+        'Learn professional tips and tricks',
+        'Unlock the master craftsman path'
+      ],
+      questions: []
+    },
+    'finishing': {
+      title: 'Wood Finishing Techniques',
+      steps: [
+        'Prepare the wood surface properly',
+        'Choose the right finish for your project',
+        'Apply stain evenly and consistently',
+        'Protect with clear coat or varnish'
+      ],
+      questions: [
+        {
+          question: 'What is the first step in wood finishing?',
+          options: ['Apply stain', 'Sand the surface', 'Apply varnish', 'Choose color'],
+          correct: 1
+        }
+      ]
+    },
+  };
+
+  const handleStartLesson = (lesson: any) => {
+    console.log('Starting lesson:', lesson.title);
+    Alert.alert('Lesson Started!', `Starting ${lesson.title} lesson`);
+    setCurrentLesson(lesson);
+    setLessonProgress(0);
+    setShowLessonContent(true);
+    setSelectedLesson(null);
+  };
+
+  const handleLessonComplete = () => {
+    if (currentLesson) {
+      completeSkill(currentLesson.id);
+      Alert.alert(
+        'Lesson Completed! 🎉',
+        `You earned ${currentLesson.xpReward} XP points!`,
+        [
+          {
+            text: 'Continue',
+            onPress: () => {
+              setShowLessonContent(false);
+              setCurrentLesson(null);
+              setLessonProgress(0);
+            }
+          }
+        ]
+      );
+    }
+  };
+
+    const renderLessonNode = (lesson: any, index: number) => {
+    const isCompleted = lesson.isCompleted;
+    const isUnlocked = lesson.isUnlocked;
+    const isLocked = !isUnlocked;
     
-    // Calculate position based on level and category
-    const level = skill.level;
-    const categoryIndex = ['safety', 'tools', 'techniques', 'joinery', 'finishing', 'design'].indexOf(skill.category as any);
-    
-    return {
-      ...skill,
-      isUnlocked,
-      isCompleted,
-      x: (width / 4) + (categoryIndex * (width / 3)),
-      y: 120 + (level * 120),
+    // Dynamic pattern: Center → Left → Center → Right → Center → Left → Center → Right...
+    const getNodePosition = (index: number) => {
+      // Pattern: 0=center, 1=left, 2=center, 3=right, 4=center, 5=left, 6=center, 7=right...
+      const patternIndex = index % 4;
+      
+      if (patternIndex === 0) {
+        return { align: 'center', marginLeft: 0, marginRight: 0 }; // Center position
+      } else if (patternIndex === 1) {
+        return { align: 'left', marginLeft: 40, marginRight: 0 }; // Left position
+      } else if (patternIndex === 2) {
+        return { align: 'center', marginLeft: 0, marginRight: 0 }; // Center position
+      } else {
+        return { align: 'right', marginLeft: 0, marginRight: 40 }; // Right position
+      }
     };
-  });
-
-  const renderSkillNode = (skill: SkillNode) => {
-    const isActive = skill.isUnlocked && !skill.isCompleted;
-    const isCompleted = skill.isCompleted;
-    const isLocked = !skill.isUnlocked;
     
-    // Calculate progress for active skills
-    const progress = isActive ? Math.floor(Math.random() * 80) + 20 : 0;
+    const position = getNodePosition(index);
     
     return (
+      <View key={lesson.id} style={[
+        styles.lessonNodeContainer,
+        {
+          alignItems: position.align === 'left' ? 'flex-start' : position.align === 'right' ? 'flex-end' : 'center',
+          marginLeft: position.marginLeft,
+          marginRight: position.marginRight,
+        }
+      ]}>
+        {/* Connection line above last item */}
+        {index === lessons.length - 1 && (
+          <View style={[
+            styles.connectionLine,
+            { 
+              backgroundColor: lessons[index - 1]?.isCompleted ? '#58CC02' : '#E5E5E5',
+              height: 25,
+              width: 2,
+              alignSelf: 'center',
+              marginBottom: 5,
+            }
+          ]} />
+        )}
+        
+        {/* Connection line to next node */}
+        {index < lessons.length - 1 && (
+          <View style={[
+            styles.connectionLine,
+            { 
+              backgroundColor: isCompleted ? '#58CC02' : '#E5E5E5',
+              height: 35,
+              width: 2,
+              alignSelf: 'center',
+            }
+          ]} />
+        )}
+        
       <TouchableOpacity
-        key={skill.id}
         style={[
-          styles.skillNode,
+            styles.lessonNode,
           {
-            left: skill.x - 60,
-            top: skill.y - 40,
             backgroundColor: isCompleted 
-              ? Colors[colorScheme ?? 'light'].success 
-              : isActive 
-                ? Colors[colorScheme ?? 'light'].primary 
-                : isLocked
-                  ? Colors[colorScheme ?? 'light'].tabIconDefault
-                  : Colors[colorScheme ?? 'light'].border,
-            borderColor: isActive ? Colors[colorScheme ?? 'light'].primary : 'transparent',
-            borderWidth: isActive ? 2 : 0,
+                ? '#58CC02' 
+                : isUnlocked 
+                  ? lesson.color
+                  : '#E5E5E5',
+              borderColor: isUnlocked ? lesson.color : '#E5E5E5',
+              borderWidth: isUnlocked ? 3 : 2,
           },
         ]}
         onPress={() => {
-          if (isActive) {
-            setSelectedSkill(skill);
-          } else if (isLocked) {
-            // Show prerequisites needed
-            setSelectedSkill(skill);
-          }
-        }}
-        disabled={skill.isCompleted}
-      >
-        <IconSymbol 
-          name={skill.icon as any} 
-          size={24} 
-          color={Colors[colorScheme ?? 'light'].background} 
-        />
-        <Text style={[
-          styles.skillTitle,
-          { color: Colors[colorScheme ?? 'light'].background }
-        ]}>
-          {skill.title}
-        </Text>
-        <Text style={[
-          styles.skillLevel,
-          { color: Colors[colorScheme ?? 'light'].background }
-        ]}>
-          Level {skill.level}
-        </Text>
-        
-        {/* Progress bar for active skills */}
-        {isActive && (
-          <View style={styles.skillProgressBar}>
-            <View style={[styles.skillProgressFill, { width: `${progress}%` }]} />
-          </View>
-        )}
-        
-        {skill.isCompleted && (
+            if (isUnlocked) {
+              setSelectedLesson(lesson);
+            }
+          }}
+          disabled={isLocked}
+        >
+          {lesson.type === 'start' && (
+            <IconSymbol name="star.fill" size={32} color="white" />
+          )}
+          {lesson.type === 'lesson' && (
+            <IconSymbol name={lesson.icon} size={28} color="white" />
+          )}
+          {lesson.type === 'chest' && (
+            <IconSymbol name="shippingbox.fill" size={28} color="white" />
+          )}
+          {lesson.type === 'character' && (
+            <IconSymbol name="person.fill" size={28} color="white" />
+          )}
+          
+          {isCompleted && (
           <IconSymbol 
             name="checkmark.circle.fill" 
             size={20} 
-            color={Colors[colorScheme ?? 'light'].background} 
-            style={styles.completedIcon}
+              color="white" 
+              style={styles.completedBadge}
           />
         )}
+          
         {isLocked && (
           <IconSymbol 
             name="lock.fill" 
             size={16} 
-            color={Colors[colorScheme ?? 'light'].background} 
-            style={styles.lockedIcon}
+              color="#999" 
+              style={styles.lockedBadge}
           />
         )}
       </TouchableOpacity>
-    );
-  };
-
-  const renderConnections = () => {
-    return uiSkills.map((skill, index) => {
-      if (skill.prerequisites.length === 0) return null;
-      
-      // Find prerequisite skills to draw connections
-      const prereqSkills = skill.prerequisites.map(prereqId => 
-        uiSkills.find(s => s.id === prereqId)
-      ).filter(Boolean) as SkillNode[];
-      
-      return prereqSkills.map((prereq, prereqIndex) => {
-        const startX = prereq.x;
-        const startY = prereq.y + 40;
-        const endX = skill.x;
-        const endY = skill.y - 40;
         
-        const isUnlocked = skill.isUnlocked;
-        
-        return (
-          <View
-            key={`connection-${skill.id}-${prereq.id}`}
-            style={[
-              styles.connection,
-              {
-                left: Math.min(startX, endX),
-                top: startY,
-                width: Math.abs(endX - startX),
-                height: Math.abs(endY - startY),
-                backgroundColor: isUnlocked 
-                  ? Colors[colorScheme ?? 'light'].primary 
-                  : Colors[colorScheme ?? 'light'].tabIconDefault,
-              },
-            ]}
-          />
-        );
-      });
-    });
-  };
-
-  const renderSkillDetails = () => {
-    if (!selectedSkill) return null;
-    
-    const isUnlocked = selectedSkill.isUnlocked;
-    const isCompleted = selectedSkill.isCompleted;
-    
-    return (
-      <View style={[styles.skillDetailsContainer, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-        <View style={styles.skillDetailsHeader}>
-          <View style={[styles.skillDetailsIconContainer, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
-            <IconSymbol name={selectedSkill.icon as any} size={32} color="white" />
-          </View>
-          <View style={styles.skillDetailsContent}>
-            <Text style={[styles.skillDetailsTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-              {selectedSkill.title}
-            </Text>
-            <View style={styles.skillDetailsMeta}>
-              <View style={[styles.levelBadge, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
-                <Text style={styles.levelBadgeText}>Level {selectedSkill.level}</Text>
-              </View>
-              <View style={[styles.xpBadge, { backgroundColor: Colors[colorScheme ?? 'light'].success }]}>
-                <Text style={styles.xpBadgeText}>+{selectedSkill.xpReward} XP</Text>
-              </View>
-            </View>
-            <Text style={[styles.skillDetailsDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
-              {selectedSkill.description}
-            </Text>
-          </View>
-        </View>
-        
-     
-        
-        {!isUnlocked && (
-          <View style={styles.prerequisitesSection}>
-            <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-              Prerequisites Required
-            </Text>
-            <Text style={[styles.prerequisitesDescription, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
-              Complete these skills to unlock "{selectedSkill.title}"
-            </Text>
-            <View style={styles.prerequisitesList}>
-              {selectedSkill.prerequisites.map((prereqId: string) => {
-                const prereqSkill = woodworkingSkills.find((s: any) => s.id === prereqId);
-                const isCompleted = completedSkills.includes(prereqId);
-                return (
-                  <View key={prereqId} style={[styles.prerequisiteItem, { 
-                    backgroundColor: isCompleted 
-                      ? Colors[colorScheme ?? 'light'].success + '15' 
-                      : Colors[colorScheme ?? 'light'].backgroundSecondary 
-                  }]}>
-                    <IconSymbol 
-                      name={isCompleted ? "checkmark.circle.fill" : "circle"} 
-                      size={20} 
-                      color={isCompleted ? Colors[colorScheme ?? 'light'].success : Colors[colorScheme ?? 'light'].tabIconDefault} 
-                    />
-                    <Text style={[styles.prerequisiteText, { 
-                      color: isCompleted 
-                        ? Colors[colorScheme ?? 'light'].success 
-                        : Colors[colorScheme ?? 'light'].text 
-                    }]}>
-                      {prereqSkill?.title || prereqId}
-                    </Text>
-                    {!isCompleted && (
-                      <Text style={[styles.prerequisiteHint, { color: Colors[colorScheme ?? 'light'].textTertiary }]}>
-                        Not started
-                      </Text>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
-        
-        {isUnlocked && !isCompleted && (
-          <View style={styles.microStepsSection}>
-            <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-              What You'll Learn
-            </Text>
-            <View style={styles.microStepsList}>
-              {selectedSkill.microSteps.map((step, index) => (
-                <View key={index} style={styles.microStepItem}>
-                  <View style={[styles.microStepNumber, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
-                    <Text style={styles.microStepNumberText}>{index + 1}</Text>
-                  </View>
-                  <Text style={[styles.microStepText, { color: Colors[colorScheme ?? 'light'].text }]}>
-                    {step}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            
-            <TouchableOpacity
-              style={[styles.startLearningButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
-              onPress={() => {
-                completeSkill(selectedSkill.id);
-                setSelectedSkill(null);
-              }}
-            >
-              <Text style={styles.startLearningButtonText}>Start Learning</Text>
-              <IconSymbol name="arrow.right" size={20} color="white" />
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        {isCompleted && (
-          <View style={styles.completedSection}>
-            <IconSymbol name="checkmark.circle.fill" size={60} color={Colors[colorScheme ?? 'light'].success} />
-            <Text style={[styles.completedText, { color: Colors[colorScheme ?? 'light'].success }]}>
-              Skill Completed!
-            </Text>
-            <Text style={[styles.completedSubtext, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
-              You earned {selectedSkill.xpReward} XP
-            </Text>
-          </View>
-        )}
-
-           {/* Action Buttons Section */}
-           <View style={[styles.actionButtonsSection, { borderTopColor: Colors[colorScheme ?? 'light'].border + '30' }]}>
-          <View style={styles.skillDetailsActions}>
-
-              <TouchableOpacity
-                style={[styles.startButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
-                onPress={() => {
-                  completeSkill(selectedSkill.id);
-                  setSelectedSkill(null);
-                }}
-              >
-                <IconSymbol name="play.fill" size={18} color="white" />
-                <Text style={styles.startButtonText}>Start Learning</Text>
-              </TouchableOpacity>
-
-            
-            <TouchableOpacity
-              style={[styles.closeButton, { 
-                borderColor: Colors[colorScheme ?? 'light'].border,
-                backgroundColor: Colors[colorScheme ?? 'light'].backgroundSecondary
-              }]}
-              onPress={() => setSelectedSkill(null)}
-            >
-              <Text style={[styles.closeButtonText, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
-                Close
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <Text style={[
+          styles.lessonTitle,
+          { 
+            color: isUnlocked ? '#333' : '#999',
+            fontWeight: isUnlocked ? '600' : '400',
+            textAlign: 'center',
+          }
+        ]}>
+          {lesson.title}
+        </Text>
       </View>
     );
   };
 
-  return (
+
+    
+    return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-            <StatusBar translucent backgroundColor={'transparent'} />
-        <Header 
-          title="Skills" 
-          subtitle="Master the craft, one skill at a time"
-          showSafeArea={false}
-        />
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <StatusBar translucent backgroundColor={'transparent'} />
       
-        
-        <View style={styles.skillTree}>
-          {renderConnections()}
-          {uiSkills.map(renderSkillNode)}
-        </View>
-        
-        {renderSkillDetails()}
-        
-        {/* Duolingo-style Lesson List */}
-        <View style={[styles.lessonSection, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-          <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-            Today's Lessons
-          </Text>
-          <Text style={[styles.sectionSubtitle, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
-            Continue your woodworking journey
-          </Text>
-          
-          <View style={styles.lessonList}>
-            <LessonCard
-              title="Basic Tool Safety"
-              description="Learn essential safety practices for using hand tools and power tools in the workshop."
-              difficulty="Beginner"
-              progress={75}
-              duration="15 min"
-              lessonsCompleted={3}
-              totalLessons={4}
-              onPress={() => console.log('Basic Tool Safety pressed')}
-            />
+      {/* Original Header Component */}
+      <Header 
+        title="Learn" 
+        subtitle="Master woodworking skills step by step"
+        showSafeArea={false}
+      />
+      
+      {/* Duolingo-style Progress Header */}
+      <View style={styles.progressHeader}>
+        <View style={styles.progressHeaderContent}>
+          <View style={styles.progressHeaderLeft}>
+            <Text style={styles.sectionTitle}>Section 1: Beginner Woodworker</Text>
+            <Text style={styles.progressText}>
+              {completedSkills.length} of {lessons.length} lessons completed
+            </Text>
+              </View>
+          <View style={styles.progressHeaderRight}>
+            {/* Streak */}
+            <View style={styles.headerItem}>
+              <IconSymbol name="flame.fill" size={20} color="#FF4B4B" />
+              <Text style={styles.headerText}>7</Text>
+              </View>
             
-            <LessonCard
-              title="Measuring & Marking"
-              description="Master the fundamentals of accurate measurement and marking techniques."
-              difficulty="Beginner"
-              progress={100}
-              duration="20 min"
-              lessonsCompleted={5}
-              totalLessons={5}
-              onPress={() => console.log('Measuring & Marking pressed')}
-              isCompleted={true}
-            />
+            {/* Coins */}
+            <View style={styles.headerItem}>
+              <IconSymbol name="leaf.fill" size={20} color="#FFD700" />
+              <Text style={styles.headerText}>1,250</Text>
+            </View>
             
-            <LessonCard
-              title="Sawing Techniques"
-              description="Learn proper sawing techniques for different types of cuts and materials."
-              difficulty="Intermediate"
-              progress={0}
-              duration="25 min"
-              lessonsCompleted={0}
-              totalLessons={6}
-              unlockRequirement="Complete 'Basic Tool Safety' and 'Measuring & Marking' to unlock"
-              onPress={() => console.log('Sawing Techniques pressed')}
-              isLocked={true}
-            />
-            
-            <LessonCard
-              title="Joinery Basics"
-              description="Explore fundamental woodworking joints and their applications."
-              difficulty="Intermediate"
-              progress={45}
-              duration="30 min"
-              lessonsCompleted={2}
-              totalLessons={8}
-              onPress={() => console.log('Joinery Basics pressed')}
-            />
+            {/* Lives */}
+            <View style={styles.headerItem}>
+              <IconSymbol name="heart.fill" size={20} color="#FF4B4B" />
+              <Text style={styles.headerText}>5</Text>
           </View>
         </View>
+                  </View>
+            </View>
         
-        <View style={styles.progressSection}>
-          <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-            Your Progress
+      {/* Main Learning Path */}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.learningPath}>
+          {lessons.map((lesson, index) => renderLessonNode(lesson, index))}
+          </View>
+        
+        
+      </ScrollView>
+      
+      {/* Lesson Details Modal - Outside ScrollView */}
+      {selectedLesson && (
+        <View style={styles.lessonDetailsModal}>
+          <View style={styles.lessonDetailsContent}>
+            <View style={styles.lessonDetailsHeader}>
+              <View style={[styles.lessonDetailsIcon, { backgroundColor: selectedLesson.color }]}>
+                <IconSymbol name={selectedLesson.icon} size={32} color="white" />
+              </View>
+              <View style={styles.lessonDetailsText}>
+                <Text style={styles.lessonDetailsTitle}>{selectedLesson.title}</Text>
+                <Text style={styles.lessonDetailsSubtitle}>
+                  {selectedLesson.type === 'start' && 'Begin your woodworking journey'}
+                  {selectedLesson.type === 'lesson' && 'Learn essential woodworking skills'}
+                  {selectedLesson.type === 'chest' && 'Collect your rewards'}
+                  {selectedLesson.type === 'character' && 'Meet your woodworking mentor'}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.lessonDetailsActions}>
+              {selectedLesson.isUnlocked && !selectedLesson.isCompleted && (
+                <TouchableOpacity
+                  style={[styles.startLessonButton, { backgroundColor: selectedLesson.color }]}
+                  onPress={() => handleStartLesson(selectedLesson)}
+                >
+                  <Text style={styles.startLessonButtonText}>
+                    {selectedLesson.type === 'start' && 'Start Journey'}
+                    {selectedLesson.type === 'lesson' && 'Start Lesson'}
+                    {selectedLesson.type === 'chest' && 'Open Chest'}
+                    {selectedLesson.type === 'character' && 'Meet Character'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              
+              {selectedLesson.isCompleted && (
+                <View style={[styles.completedButton, { backgroundColor: '#58CC02' }]}>
+                  <IconSymbol name="checkmark.circle.fill" size={20} color="white" />
+                  <Text style={styles.completedButtonText}>Completed!</Text>
+                </View>
+              )}
+              
+              {!selectedLesson.isUnlocked && (
+                <View style={styles.lockedButton}>
+                  <IconSymbol name="lock.fill" size={20} color="#999" />
+                  <Text style={styles.lockedButtonText}>Complete previous lessons to unlock</Text>
+                </View>
+              )}
+              
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setSelectedLesson(null)}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+      
+      {/* Lesson Content Modal - Outside ScrollView */}
+      {showLessonContent && currentLesson && (
+        <View style={styles.lessonContentModal}>
+          <View style={styles.lessonContentContainer}>
+            <View style={styles.lessonContentHeader}>
+              <View style={[styles.lessonContentIcon, { backgroundColor: currentLesson.color }]}>
+                <IconSymbol name={currentLesson.icon} size={32} color="white" />
+        </View>
+              <View style={styles.lessonContentTitleContainer}>
+                <Text style={styles.lessonContentTitle}>
+                  {lessonContent[currentLesson.id as keyof typeof lessonContent]?.title || currentLesson.title}
           </Text>
-          <View style={[styles.progressBar, { backgroundColor: Colors[colorScheme ?? 'light'].border }]}>
+                <Text style={styles.lessonContentSubtitle}>
+                  Step {lessonProgress + 1} of {lessonContent[currentLesson.id as keyof typeof lessonContent]?.steps.length || 1}
+          </Text>
+          </View>
+              <TouchableOpacity
+                style={styles.closeContentButton}
+                onPress={() => {
+                  setShowLessonContent(false);
+                  setCurrentLesson(null);
+                  setLessonProgress(0);
+                }}
+              >
+                <IconSymbol name="xmark" size={20} color="#666" />
+              </TouchableOpacity>
+        </View>
+        
+            <ScrollView style={styles.lessonContentBody}>
+              <View style={styles.lessonStepContainer}>
+                <Text style={styles.lessonStepText}>
+                  {lessonContent[currentLesson.id as keyof typeof lessonContent]?.steps[lessonProgress] || 'Loading...'}
+          </Text>
+              </View>
+              
+              {/* Progress Bar */}
+              <View style={styles.lessonProgressContainer}>
+                <View style={styles.lessonProgressBar}>
             <View 
               style={[
-                styles.progressFill, 
+                      styles.lessonProgressFill, 
                 { 
-                  width: `${(completedSkills.length / woodworkingSkills.length) * 100}%`,
-                  backgroundColor: Colors[colorScheme ?? 'light'].primary,
+                        width: `${((lessonProgress + 1) / (lessonContent[currentLesson.id as keyof typeof lessonContent]?.steps.length || 1)) * 100}%`,
+                        backgroundColor: currentLesson.color,
                 }
               ]} 
             />
           </View>
-          <Text style={[styles.progressText, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-            {completedSkills.length} of {woodworkingSkills.length} skills completed
+                <Text style={styles.lessonProgressText}>
+                  {lessonProgress + 1} / {lessonContent[currentLesson.id as keyof typeof lessonContent]?.steps.length || 1}
           </Text>
         </View>
       </ScrollView>
+            
+            <View style={styles.lessonContentActions}>
+              {lessonProgress < (lessonContent[currentLesson.id as keyof typeof lessonContent]?.steps.length || 1) - 1 ? (
+                <TouchableOpacity
+                  style={[styles.nextStepButton, { backgroundColor: currentLesson.color }]}
+                  onPress={() => setLessonProgress(lessonProgress + 1)}
+                >
+                  <Text style={styles.nextStepButtonText}>Next Step</Text>
+                  <IconSymbol name="arrow.right" size={20} color="white" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.completeLessonButton, { backgroundColor: '#58CC02' }]}
+                  onPress={handleLessonComplete}
+                >
+                  <Text style={styles.completeLessonButtonText}>Complete Lesson</Text>
+                  <IconSymbol name="checkmark.circle.fill" size={20} color="white" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      )}
+
+            {/* Bottom Navigation */}
+      <View style={styles.bottomNavigation}>
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => console.log('Navigate to Home')}
+        >
+          <IconSymbol name="house.fill" size={24} color="#58CC02" />
+          <Text style={[styles.navText, { color: '#58CC02' }]}>Home</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => console.log('Navigate to Tools')}
+        >
+          <IconSymbol name="hammer.fill" size={24} color="#999" />
+          <Text style={styles.navText}>Tools</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => console.log('Navigate to Community')}
+        >
+          <IconSymbol name="person.2.fill" size={24} color="#999" />
+          <Text style={styles.navText}>Community</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => console.log('Navigate to Rewards')}
+        >
+          <IconSymbol name="shippingbox.fill" size={24} color="#999" />
+          <Text style={styles.navText}>Rewards</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => console.log('Navigate to Notifications')}
+        >
+          <IconSymbol name="bell.fill" size={24} color="#999" />
+          <Text style={styles.navText}>Notifications</Text>
+        </TouchableOpacity>
+        </View>
     </SafeAreaView>
   );
 }
@@ -434,353 +633,414 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 10, // Add top padding to account for fixed header with safe area
-    paddingBottom: 100,
-  },
-  skillTree: {
-    position: 'relative',
-    height: 600,
-    marginHorizontal: 20,
-  },
-  skillNode: {
-    position: 'absolute',
-    width: 120,
-    height: 80,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+  
+  // Progress Header Styles
+  progressHeader: {
+    backgroundColor: '#58CC02',
+    paddingTop: 10,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  skillTitle: {
-    fontSize: 10,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 12,
-  },
-  skillLevel: {
-    fontSize: 8,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: 2,
-    color: '#666',
-  },
-  completedIcon: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  lockedIcon: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  connection: {
-    position: 'absolute',
-    backgroundColor: '#ccc',
-  },
-  skillDetailsContainer: {
-    marginHorizontal: 20,
-    marginTop: 20,
-    padding: 24,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  skillDetailsHeader: {
+  progressHeaderContent: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 24,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  skillDetailsIconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
+  progressHeaderLeft: {
+    flex: 1,
+  },
+  progressHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  headerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  headerText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: FontFamilies.dinRounded,
+  },
+  progressText: {
+    color: 'white',
+    fontSize: 14,
+    opacity: 0.9,
+    marginTop: 2,
+  },
+  
+  // Scroll View
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+  
+  // Learning Path
+  learningPath: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    flex: 1,
+    alignItems: 'center',
+  },
+  lessonNodeContainer: {
+    marginBottom: 15,
+    minHeight: 140,
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: 300,
+    paddingVertical: 10,
+  },
+  connectionLine: {
+    marginBottom: 15,
+    borderRadius: 1,
+    alignSelf: 'center',
+  },
+  lessonNode: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    position: 'relative',
+  },
+  lessonTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 8,
+    fontFamily: FontFamilies.dinRounded,
+    maxWidth: 100,
+    lineHeight: 18,
+    textAlign: 'center',
+
+  },
+  completedBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+  },
+  lockedBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+  },
+  
+  // Lesson Details Modal
+  lessonDetailsModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  lessonDetailsContent: {
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+    width: width - 40,
+  },
+  lessonDetailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  lessonDetailsIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
   },
-  skillDetailsContent: {
+  lessonDetailsText: {
     flex: 1,
   },
-  skillDetailsTitle: {
-    fontSize: 24,
+  lessonDetailsTitle: {
+    fontSize: 20,
     fontWeight: '700',
-    marginBottom: 8,
-    lineHeight: 28,
+    color: '#333',
+    marginBottom: 4,
+    fontFamily: FontFamilies.dinRounded,
   },
-  skillDetailsMeta: {
-    flexDirection: 'row',
+  lessonDetailsSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  lessonDetailsActions: {
+    gap: 12,
+  },
+  startLessonButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
     alignItems: 'center',
-    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  levelBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginRight: 12,
-  },
-  levelBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
+  startLessonButtonText: {
     color: 'white',
-  },
-  xpBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-  },
-  xpBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'white',
-  },
-  skillDetailsDescription: {
     fontSize: 16,
-    lineHeight: 24,
-
-    opacity: 0.9,
+    fontWeight: '600',
+    fontFamily: FontFamilies.dinRounded,
   },
-  skillDetailsActions: {
-    flexDirection: 'row',
-    gap: 16,
+  closeButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    alignItems: 'center',
+    backgroundColor: '#F0F0F0',
   },
-  actionButtonsSection: {
-    paddingTop: 20,
-    borderTopWidth: 1,
+  closeButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: FontFamilies.dinRounded,
   },
-  startButton: {
-    flex: 2,
+  completedButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: 16,
+    gap: 8,
   },
-  startButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
-    marginLeft: 8,
+  completedButtonText: {
     color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: FontFamilies.dinRounded,
   },
-  closeButton: {
-    flex: 1,
+  lockedButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    backgroundColor: '#F0F0F0',
+    gap: 8,
+  },
+  lockedButtonText: {
+    color: '#999',
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: FontFamilies.dinRounded,
+    textAlign: 'center',
+  },
+  
+  // Bottom Navigation
+  bottomNavigation: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 5,
   },
-  closeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
   },
-  prerequisitesSection: {
-    marginBottom: 28,
-    paddingTop: 8,
+  navText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
+    color: '#999',
+    fontFamily: FontFamilies.dinRounded,
   },
-  prerequisitesDescription: {
-    fontSize: 16,
-    lineHeight: 22,
-    marginBottom: 16,
-    fontStyle: 'italic',
+  
+  // Lesson Content Modal Styles
+  lessonContentModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+    elevation: 10,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 20,
-    textAlign: 'left',
+  lessonContentContainer: {
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+    width: width - 40,
+    maxHeight: '80%',
   },
-  prerequisitesList: {
-    gap: 10,
-  },
-  prerequisiteItem: {
+  lessonContentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  prerequisiteText: {
-    fontSize: 15,
-    marginLeft: 12,
-    flex: 1,
-    fontWeight: '500',
-  },
-  prerequisiteHint: {
-    fontSize: 12,
-    marginLeft: 12,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
-  microStepsSection: {
-    marginBottom: 28,
-    paddingTop: 8,
-  },
-  microStepsList: {
-    gap: 16,
     marginBottom: 24,
   },
-  microStepItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  microStepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  lessonContentIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  microStepNumberText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: 'white',
-  },
-  microStepText: {
-    fontSize: 15,
-    lineHeight: 22,
+  lessonContentTitleContainer: {
     flex: 1,
-    fontWeight: '500',
   },
-  startLearningButton: {
+  lessonContentTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 4,
+    fontFamily: FontFamilies.dinRounded,
+  },
+  lessonContentSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: FontFamilies.dinRounded,
+  },
+  closeContentButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lessonContentBody: {
+    flex: 1,
+    marginBottom: 24,
+  },
+  lessonStepContainer: {
+    backgroundColor: '#F8F9FA',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 20,
+  },
+  lessonStepText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
+    textAlign: 'center',
+    fontFamily: FontFamilies.dinRounded,
+  },
+  lessonProgressContainer: {
+    alignItems: 'center',
+  },
+  lessonProgressBar: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#E5E5E5',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  lessonProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  lessonProgressText: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: FontFamilies.dinRounded,
+  },
+  lessonContentActions: {
+    gap: 12,
+  },
+  nextStepButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 28,
-    borderRadius: 14,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
   },
-  startLearningButtonText: {
+  nextStepButtonText: {
     color: 'white',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
-    marginRight: 10,
-  },
-  completedSection: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    paddingTop: 8,
-  },
-  completedText: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  completedSubtext: {
-    fontSize: 16,
-    textAlign: 'center',
-    opacity: 0.8,
-  },
-  lessonSection: {
-    marginHorizontal: 20,
-    marginTop: 30,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sectionSubtitle: {
     fontFamily: FontFamilies.dinRounded,
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
-    marginBottom: 20,
   },
-  lessonList: {
-    gap: 16,
-  },
-  progressSection: {
-    marginHorizontal: 20,
-    marginTop: 30,
-    padding: 20,
+  completeLessonButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 16,
-    backgroundColor: '#f8f9fa',
+    gap: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  progressBar: {
-    height: 12,
-    borderRadius: 6,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 6,
-  },
-  progressText: {
+  completeLessonButtonText: {
+    color: 'white',
     fontSize: 16,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  skillProgressBar: {
-    width: '80%',
-    height: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 2,
-    marginTop: 4,
-    overflow: 'hidden',
-  },
-  skillProgressFill: {
-    height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 2,
+    fontWeight: '600',
+    fontFamily: FontFamilies.dinRounded,
   },
 });

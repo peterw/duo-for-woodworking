@@ -345,10 +345,7 @@ export default function HomeScreen() {
   };
 
   const handleStartProject = (project: any) => {
-    router.push({
-      pathname: '/(tabs)/projects',
-      params: { selectedProject: project.id }
-    });
+    router.push(`/woodworking-project/${project.id}`);
   };
 
   const handleViewAllProjects = () => {
@@ -374,7 +371,7 @@ export default function HomeScreen() {
       </View>
       <TouchableOpacity style={styles.streakBadge}>
         <LinearGradient
-          colors={['#FF6B35', '#F7931E']}
+          colors={['#58CC02', '#46B700']}
           style={styles.streakBadgeContent}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}

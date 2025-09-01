@@ -11,14 +11,14 @@ import { useUserProgressStore } from '@/stores';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  Dimensions,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    Dimensions,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -354,8 +354,7 @@ export default function ProjectsScreen() {
 
   const handleStartProject = (project: Project) => {
     if (canStartProject(project)) {
-      setSelectedProject(project);
-      setShowProjectSlicer(true);
+      router.push(`/woodworking-project/${project.id}`);
     }
   };
 

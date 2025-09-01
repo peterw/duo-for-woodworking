@@ -2,12 +2,12 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
 import React from 'react';
 import {
-  Dimensions,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Dimensions,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -49,34 +49,43 @@ export default function RecentProjects({
       
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.projectsScrollView}>
         {recentProjects.map((project, index) => (
-          <TouchableOpacity
+          <View
             key={project.id}
             style={styles.projectCard}
-            onPress={() => onProjectPress(project)}
           >
-            <View style={[styles.projectIcon, { backgroundColor: getSkillColor(index) }]}>
-              <IconSymbol name="hammer.fill" size={24} color="white" />
-            </View>
-            <Text style={styles.projectTitle} numberOfLines={2}>
-              {project.title}
-            </Text>
-            <Text style={styles.projectDifficulty}>
-              {project.difficulty}
-            </Text>
-            {project.isStarted && (
-              <View style={styles.projectProgress}>
-                <View style={styles.projectProgressBar}>
-                  <View 
-                    style={[
-                      styles.projectProgressFill,
-                      { width: `${project.progress}%` }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.projectProgressText}>{project.progress}%</Text>
+            <View style={styles.projectCardContent}>
+              <View style={[styles.projectIcon, { backgroundColor: getSkillColor(index) }]}>
+                <IconSymbol name="hammer.fill" size={24} color="white" />
               </View>
-            )}
-          </TouchableOpacity>
+              <Text style={styles.projectTitle} numberOfLines={2}>
+                {project.title}
+              </Text>
+              <Text style={styles.projectDifficulty}>
+                {project.difficulty}
+              </Text>
+              {project.isStarted && (
+                <View style={styles.projectProgress}>
+                  <View style={styles.projectProgressBar}>
+                    <View 
+                      style={[
+                        styles.projectProgressFill,
+                        { width: `${project.progress}%` }
+                      ]} 
+                    />
+                  </View>
+                  <Text style={styles.projectProgressText}>{project.progress}%</Text>
+                </View>
+              )}
+            </View>
+            
+            <TouchableOpacity
+              style={styles.startProjectButton}
+              onPress={() => onProjectPress(project)}
+            >
+              <Text style={styles.startProjectButtonText}>Start Project</Text>
+              <IconSymbol name="arrow.right" size={16} color="white" />
+            </TouchableOpacity>
+          </View>
         ))}
       </ScrollView>
     </View>
@@ -119,8 +128,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    justifyContent: 'space-between',
     padding: 20,
+  },
+  projectCardContent: {
+    flex: 1,
+    justifyContent: 'space-between',
   },
   projectIcon: {
     width: 40,
@@ -163,5 +175,21 @@ const styles = StyleSheet.create({
     fontFamily: FontFamilies.dinRounded,
     color: '#666666',
     marginLeft: 8,
+  },
+  startProjectButton: {
+    backgroundColor: '#58CC02',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  startProjectButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontFamily: FontFamilies.featherBold,
   },
 });

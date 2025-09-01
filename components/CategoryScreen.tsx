@@ -5,14 +5,14 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-  Dimensions,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Dimensions,
+    Image,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -464,8 +464,8 @@ export default function CategoryScreen({
           },
         ]}
         onPress={() => {
-          // Navigate to project detail or start project
-          console.log('Navigate to project:', project.id);
+          // Card click - could show project preview or do nothing
+          console.log('Project card clicked:', project.id);
         }}
       >
         <View style={styles.projectImageContainer}>
@@ -516,8 +516,7 @@ export default function CategoryScreen({
           <TouchableOpacity
             style={[styles.startButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
             onPress={() => {
-              // Navigate to start project
-              console.log('Start project:', project.id);
+              router.push(`/woodworking-project/${project.id}`);
             }}
           >
             <Text style={styles.startButtonText}>Start Project</Text>

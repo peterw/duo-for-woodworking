@@ -34,7 +34,7 @@ export function Header({ title, subtitle, showSafeArea = true, backgroundColor =
       </View>
       
       {/* Decorative accent line */}
-      <View style={[styles.accentLine, { backgroundColor: colors?.tint || '#007AFF' }]} />
+      <View style={[styles.accentLine, { backgroundColor: colors?.primary || '#58CC02' }]} />
     </View>
   );
 }

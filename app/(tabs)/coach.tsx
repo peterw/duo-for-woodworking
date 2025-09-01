@@ -127,7 +127,7 @@ export default function CoachScreen() {
   };
 
   // Animated typing dots
-  const TypingDots = ({ color = '#8B4513' }: { color?: string }) => {
+  const TypingDots = ({ color = '#FF6B35' }: { color?: string }) => {
     const d1 = useRef(new Animated.Value(0.3)).current;
     const d2 = useRef(new Animated.Value(0.3)).current;
     const d3 = useRef(new Animated.Value(0.3)).current;
@@ -273,7 +273,7 @@ export default function CoachScreen() {
       {...props}
       wrapperStyle={{
         left: {
-          backgroundColor: '#8B4513',
+          backgroundColor: '#FF6B35',
           borderRadius: 24,
           paddingHorizontal: 16,
           paddingVertical: 12,
@@ -285,10 +285,10 @@ export default function CoachScreen() {
           shadowRadius: 12,
           elevation: 6,
           borderWidth: 2,
-          borderColor: '#A0522D',
+          borderColor: '#FF6B35',
         },
         right: {
-          backgroundColor: '#E8F5E8',
+          backgroundColor: '#58CC02',
           borderRadius: 24,
           paddingHorizontal: 16,
           paddingVertical: 12,
@@ -301,7 +301,7 @@ export default function CoachScreen() {
           shadowRadius: 8,
           elevation: 4,
           borderWidth: 2,
-          borderColor: '#C8E6C9',
+          borderColor: '#58CC02',
         },
       }}
       textStyle={{
@@ -313,7 +313,7 @@ export default function CoachScreen() {
           fontWeight: '500',
         },
         right: {
-          color: '#2E7D32',
+          color: '#ffffff',
           fontSize: 16,
           lineHeight: 24,
           fontFamily: FontFamilies.dinRounded,
@@ -389,7 +389,7 @@ export default function CoachScreen() {
       }}
     >
       <LinearGradient
-        colors={['#8B4513', '#A0522D']}
+        colors={['#58CC02', '#46a102']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.sendButton}
@@ -405,7 +405,7 @@ export default function CoachScreen() {
     return (
       <View style={styles.typingContainer}>
         <View style={styles.typingBubble}>
-          <TypingDots color="#8B4513" />
+          <TypingDots color="#FF6B35" />
           <Text style={styles.typingText}>AI Coach is thinking...</Text>
         </View>
       </View>
@@ -418,7 +418,7 @@ export default function CoachScreen() {
       <View style={[
         styles.avatar,
         { 
-          backgroundColor: isAI ? '#8B4513' : '#E8F5E8',
+          backgroundColor: isAI ? '#FF6B35' : '#E8F5E8',
           borderWidth: 2,
           borderColor: isAI ? '#A0522D' : '#C8E6C9',
         }
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
   promptsTitle: {
     fontSize: 20,
     fontFamily: FontFamilies.featherBold,
-    color: '#8B4513',
+    color: '#58CC02',
     marginLeft: 20,
     marginTop: 20,
     marginBottom: 16,
@@ -593,9 +593,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   categoryTabActive: {
-    backgroundColor: '#8B4513',
-    borderColor: '#8B4513',
-    shadowColor: '#8B4513',
+    backgroundColor: '#58CC02',
+    borderColor: '#58CC02',
+    shadowColor: '#58CC02',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -687,6 +687,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
+ 
     minWidth: 80,
     height: 56,
     shadowColor: '#000',
