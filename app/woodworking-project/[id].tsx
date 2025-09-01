@@ -4,17 +4,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Image,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Dimensions,
+  Image,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -38,6 +38,7 @@ interface ProjectDetail {
 }
 
 export default function ProjectDetailScreen() {
+  const {top:topPadding} = useSafeAreaInsets()
   const { id } = useLocalSearchParams();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [selectedTab, setSelectedTab] = useState<'overview' | 'materials' | 'tools' | 'steps'>('overview');
@@ -233,28 +234,13 @@ export default function ProjectDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <IconSymbol name="chevron.left" size={24} color="#000000" />
-        </TouchableOpacity>
-        
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Project Details</Text>
-        </View>
-        
-        <TouchableOpacity style={styles.shareButton}>
-          <IconSymbol name="square.and.arrow.up" size={20} color="#666666" />
-        </TouchableOpacity>
-      </View>
+  
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom:100}}>
         {/* Hero Image Section */}
         <View style={styles.heroSection}>
           <Image 
@@ -263,8 +249,10 @@ export default function ProjectDetailScreen() {
             resizeMode="cover"
           />
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.7)']}
+            colors={['rgba(0, 0, 0, 0.8)', 'rgba(0, 0, 0, 0.4)', 'rgba(0, 0, 0, 0.1)']}
             style={styles.imageOverlay}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
           >
             <View style={styles.imageContent}>
               <Text style={styles.projectTitle}>{project.title}</Text>
@@ -279,6 +267,23 @@ export default function ProjectDetailScreen() {
             </View>
           </LinearGradient>
         </View>
+
+        <View style={[styles.header, {top:topPadding}]}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <IconSymbol name="chevron.left" size={24} color="white" />
+        </TouchableOpacity>
+        
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Project Details</Text>
+        </View>
+        
+        <TouchableOpacity style={styles.shareButton}>
+          <IconSymbol name="square.and.arrow.up" size={20} color="white" />
+        </TouchableOpacity>
+      </View>
 
         {/* Quick Stats */}
         <View style={styles.quickStats}>
@@ -424,7 +429,7 @@ export default function ProjectDetailScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -448,9 +453,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+    position:'absolute'
   },
   backButton: {
     padding: 8,
@@ -462,7 +466,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontFamily: FontFamilies.featherBold,
-    color: '#000000',
+    color: 'white',
   },
   shareButton: {
     padding: 8,
@@ -472,7 +476,7 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     position: 'relative',
-    height: 250,
+    height: 270,
   },
   heroImage: {
     width: '100%',
@@ -501,6 +505,7 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     gap: 8,
+    paddingBottom:30
   },
   difficultyBadge: {
     paddingHorizontal: 12,
@@ -520,10 +525,10 @@ const styles = StyleSheet.create({
   quickStats: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingVertical: 18,
     backgroundColor: '#F8F9FA',
     marginHorizontal: 20,
-    marginTop: -20,
+    marginTop: -30,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

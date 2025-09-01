@@ -3,11 +3,11 @@ import { FontFamilies } from '@/hooks/AppFonts';
 import { router } from 'expo-router';
 import React from 'react';
 import {
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -77,7 +77,17 @@ export default function SkillModal({ visible, onClose, skill }: SkillModalProps)
             style={[styles.startLearningButton, { backgroundColor: skill.color }]}
             onPress={() => {
               onClose();
-              router.push('/(tabs)/learn');
+              // Navigate to lesson screen with skill data
+              router.push({
+                pathname: '/woodworking-project/lesson-screen',
+                params: {
+                  lessonId: skill.id,
+                  lessonTitle: skill.title,
+                  lessonColor: skill.color,
+                  lessonIcon: skill.icon,
+                  lessonType: 'lesson'
+                }
+              });
             }}
           >
             <Text style={styles.startLearningButtonText}>Start Learning</Text>

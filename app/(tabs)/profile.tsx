@@ -1,8 +1,6 @@
 import { Button } from '@/components/ui/Button';
-import { Header } from '@/components/ui/Header';
-import { Colors } from '@/constants/Colors';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
-import { useAppTheme } from '@/hooks/useAppTheme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore, useUserProgressStore } from '@/stores';
 import { hapticSelection } from '@/utils/haptics';
@@ -23,13 +21,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
-// Carousel data for woodworking achievements and stats
-const carouselData = [
+// Professional achievement cards data
+const achievementCards = [
   {
     id: '1',
     title: 'Woodworking Journey',
     subtitle: 'Your progress so far',
-    color: ['#8B4513', '#A0522D'], // Wood theme colors
+    color: ['#58CC02', '#46B700'], // Duolingo green
     icon: '🌳',
     stats: { label: 'Total XP', value: 'XP' }
   },
@@ -37,7 +35,7 @@ const carouselData = [
     id: '2',
     title: 'Safety First',
     subtitle: 'Safety achievements',
-    color: ['#F44336', '#EF5350'], // App error color
+    color: ['#1CB0F6', '#0EA5E9'], // Duolingo blue
     icon: '🛡️',
     stats: { label: 'Safety Score', value: 'Score' }
   },
@@ -45,7 +43,7 @@ const carouselData = [
     id: '3',
     title: 'Tool Mastery',
     subtitle: 'Tools you\'ve learned',
-    color: ['#4CAF50', '#66BB6A'], // App success color
+    color: ['#FF9600', '#F59E0B'], // Duolingo orange
     icon: '🔧',
     stats: { label: 'Tools Mastered', value: 'Tools' }
   },
@@ -53,7 +51,7 @@ const carouselData = [
     id: '4',
     title: 'Project Creator',
     subtitle: 'Your woodworking projects',
-    color: ['#45B7D1', '#5C9CE6'], // App hammer color
+    color: ['#CE82FF', '#A855F7'], // Duolingo purple
     icon: '🏗️',
     stats: { label: 'Projects', value: 'Count' }
   }
@@ -61,7 +59,6 @@ const carouselData = [
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
-  const { appTheme: colors } = useAppTheme();
   const { user, logout } = useAuthStore();
   const { 
     currentStreak, 
@@ -72,11 +69,9 @@ export default function ProfileScreen() {
     skillsCompleted 
   } = useUserProgressStore();
 
-  const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
-  
-  const styles = createStyles(colorScheme ?? 'light');
 
   const handleLogout = () => {
     Alert.alert(
@@ -121,7 +116,7 @@ export default function ProfileScreen() {
     );
   };
 
-  const renderCarouselItem = ({ item, index }: { item: any; index: number }) => {
+  const renderAchievementCard = ({ item, index }: { item: any; index: number }) => {
     const itemWidth = width - 40;
     const inputRange = [
       (index - 1) * itemWidth,
@@ -142,10 +137,10 @@ export default function ProfileScreen() {
     });
 
     return (
-      <View style={[styles.carouselItem, { width: itemWidth }]}>
+      <View style={[styles.cardItem, { width: itemWidth }]}>
         <Animated.View
           style={[
-            styles.carouselCard,
+            styles.achievementCard,
             {
               transform: [{ scale }],
               opacity,
@@ -154,17 +149,17 @@ export default function ProfileScreen() {
         >
           <LinearGradient
             colors={item.color}
-            style={styles.carouselGradient}
+            style={styles.cardGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Text style={styles.carouselIcon}>{item.icon}</Text>
-            <Text style={styles.carouselTitle}>{item.title}</Text>
-            <Text style={styles.carouselSubtitle}>{item.subtitle}</Text>
+            <Text style={styles.cardIcon}>{item.icon}</Text>
+            <Text style={styles.cardTitle}>{item.title}</Text>
+            <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
             
-            <View style={styles.carouselStats}>
-              <Text style={styles.carouselStatsLabel}>{item.stats.label}</Text>
-              <Text style={styles.carouselStatsValue}>
+            <View style={styles.cardStats}>
+              <Text style={styles.cardStatsLabel}>{item.stats.label}</Text>
+              <Text style={styles.cardStatsValue}>
                 {item.stats.value === 'XP' ? totalXP : 
                  item.stats.value === 'Score' ? '95%' :
                  item.stats.value === 'Tools' ? skillsCompleted :
@@ -177,18 +172,18 @@ export default function ProfileScreen() {
     );
   };
 
-  const renderCarouselIndicator = () => {
+  const renderCardIndicator = () => {
     return (
-      <View style={styles.carouselIndicators}>
-        {carouselData.map((_, index) => (
+      <View style={styles.cardIndicators}>
+        {achievementCards.map((_, index) => (
           <View
             key={index}
             style={[
               styles.indicator,
               {
-                backgroundColor: index === currentCarouselIndex ? Colors[colorScheme ?? 'light'].tint : '#D1D5DB',
-                width: index === currentCarouselIndex ? 20 : 8,
-                opacity: index === currentCarouselIndex ? 1 : 0.5,
+                backgroundColor: index === currentCardIndex ? '#58CC02' : '#E5E7EB',
+                width: index === currentCardIndex ? 20 : 8,
+                opacity: index === currentCardIndex ? 1 : 0.5,
               },
             ]}
           />
@@ -200,38 +195,44 @@ export default function ProfileScreen() {
   if (!user) {
     return (
       <View style={styles.container}>
-        <Text>User not found</Text>
+        <Text style={styles.errorText}>User not found</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Header 
-          backgroundColor={'white'}
-          title="Profile" 
-          subtitle="Your woodworking journey"
-          showSafeArea={false}
-        />
+      {/* Professional Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={styles.headerSubtitle}>Your woodworking journey</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.settingsButton}>
+            <IconSymbol name="gearshape.fill" size={24} color="#000000" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        {/* Profile Header with Enhanced Design */}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Profile Header Section */}
         <View style={styles.profileHeader}>
-          <LinearGradient
-            colors={['#8B4513', '#A0522D', '#CD853F']}
-            style={styles.profileImageContainer}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Text style={styles.profileInitial}>
-              {user.fullName.charAt(0).toUpperCase()}
-            </Text>
+          <View style={styles.profileImageContainer}>
+            <LinearGradient
+              colors={['#58CC02', '#46B700']}
+              style={styles.profileImageGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.profileInitial}>
+                {user.fullName.charAt(0).toUpperCase()}
+              </Text>
+            </LinearGradient>
             <View style={styles.levelBadge}>
               <Text style={styles.levelText}>{level}</Text>
             </View>
-          </LinearGradient>
+          </View>
           
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{user.fullName}</Text>
@@ -240,24 +241,35 @@ export default function ProfileScreen() {
               <Text style={styles.profileExperience}>
                 {user.experience.charAt(0).toUpperCase() + user.experience.slice(1)} Level
               </Text>
-              <View style={styles.streakContainer}>
-                <Text style={styles.streakIcon}>🔥</Text>
-                <Text style={styles.streakText}>{currentStreak} day streak</Text>
-              </View>
             </View>
           </View>
         </View>
 
-        {/* Beautiful Carousel Section */}
-        <View style={styles.carouselSection}>
-          <Text style={styles.carouselSectionTitle}>Your Progress</Text>
-          <Text style={styles.carouselSectionSubtitle}>Swipe to explore your achievements</Text>
+        {/* Streak Badge */}
+        <View style={styles.streakSection}>
+          <TouchableOpacity style={styles.streakBadge}>
+            <LinearGradient
+              colors={['#FF9600', '#F59E0B']}
+              style={styles.streakBadgeContent}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <IconSymbol name="flame.fill" size={20} color="white" />
+              <Text style={styles.streakBadgeText}>{currentStreak} day streak</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {/* Achievement Cards Section */}
+        <View style={styles.achievementsSection}>
+          <Text style={styles.sectionTitle}>Your Achievements</Text>
+          <Text style={styles.sectionSubtitle}>Swipe to explore your progress</Text>
           
-          <View style={styles.carouselContainer}>
+          <View style={styles.cardsContainer}>
             <FlatList
               ref={flatListRef}
-              data={carouselData}
-              renderItem={renderCarouselItem}
+              data={achievementCards}
+              renderItem={renderAchievementCard}
               keyExtractor={(item) => item.id}
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -268,8 +280,8 @@ export default function ProfileScreen() {
               )}
               onMomentumScrollEnd={(event) => {
                 const newIndex = Math.round(event.nativeEvent.contentOffset.x / (width - 40));
-                if (newIndex !== currentCarouselIndex) {
-                  setCurrentCarouselIndex(newIndex);
+                if (newIndex !== currentCardIndex) {
+                  setCurrentCardIndex(newIndex);
                   setTimeout(() => hapticSelection(), 100);
                 }
               }}
@@ -281,62 +293,50 @@ export default function ProfileScreen() {
                 index,
               })}
             />
-            {renderCarouselIndicator()}
+            {renderCardIndicator()}
           </View>
         </View>
 
-        {/* Enhanced Stats Grid */}
-        <View style={styles.statsContainer}>
+        {/* Stats Grid Section */}
+        <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Quick Stats</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#FEF3C7', '#FDE68A']}
-                style={styles.statCardGradient}
-              >
+              <View style={styles.statCardContent}>
                 <Text style={styles.statIcon}>📚</Text>
                 <Text style={styles.statValue}>{skillsCompleted}</Text>
                 <Text style={styles.statLabel}>Skills Completed</Text>
-              </LinearGradient>
+              </View>
             </View>
             
             <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#DBEAFE', '#93C5FD']}
-                style={styles.statCardGradient}
-              >
+              <View style={styles.statCardContent}>
                 <Text style={styles.statIcon}>🏆</Text>
                 <Text style={styles.statValue}>{longestStreak}</Text>
                 <Text style={styles.statLabel}>Longest Streak</Text>
-              </LinearGradient>
+              </View>
             </View>
             
             <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#D1FAE5', '#6EE7B7']}
-                style={styles.statCardGradient}
-              >
+              <View style={styles.statCardContent}>
                 <Text style={styles.statIcon}>⚡</Text>
                 <Text style={styles.statValue}>{totalXP}</Text>
                 <Text style={styles.statLabel}>Total XP</Text>
-              </LinearGradient>
+              </View>
             </View>
             
             <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#F3E8FF', '#C4B5FD']}
-                style={styles.statCardGradient}
-              >
+              <View style={styles.statCardContent}>
                 <Text style={styles.statIcon}>🔨</Text>
                 <Text style={styles.statValue}>{totalProjects}</Text>
                 <Text style={styles.statLabel}>Projects</Text>
-              </LinearGradient>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* Account Info with Enhanced Design */}
-        <View style={styles.section}>
+        {/* Account Information Section */}
+        <View style={styles.accountSection}>
           <Text style={styles.sectionTitle}>Account Information</Text>
           
           <View style={styles.infoRow}>
@@ -386,15 +386,14 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* Enhanced Actions */}
-        <View style={styles.actionsContainer}>
+        {/* Actions Section */}
+        <View style={styles.actionsSection}>
           <Button
             title="Logout"
             onPress={handleLogout}
-            variant="outline"
+            variant="primary"
             size="large"
             style={styles.logoutButton}
-            textStyle={{ color: '#ffffff' }}
           />
           
           <TouchableOpacity onPress={handleDeleteAccount} style={styles.deleteButton}>
@@ -406,46 +405,78 @@ export default function ProfileScreen() {
   );
 }
 
-const createStyles = (colorScheme: string) => StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
   },
-  headerContainer: {
-    marginBottom: 20,
-  },
-  scrollContainer: {
-    flex: 1,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 80,
+    paddingVertical: 16,
   },
+  headerLeft: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 26,
+    fontFamily: FontFamilies.featherBold,
+    color: '#000000',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    backgroundColor: '#F8F9FA',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 20,
+    paddingBottom: 100,
+  },
+  
+  // Profile Header
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
-    paddingVertical: 20,
+    marginBottom: 24,
+    paddingHorizontal: 20,
   },
   profileImageContainer: {
+    position: 'relative',
+    marginRight: 20,
+  },
+  profileImageGradient: {
     width: 90,
     height: 90,
     borderRadius: 45,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-    position: 'relative',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   profileInitial: {
     fontSize: 36,
-    fontWeight: 'bold',
+    fontFamily: FontFamilies.featherBold,
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   levelBadge: {
     position: 'absolute',
@@ -459,135 +490,153 @@ const createStyles = (colorScheme: string) => StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   levelText: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors[colorScheme as keyof typeof Colors].tint,
+    fontFamily: FontFamilies.featherBold,
+    color: '#000000',
   },
   profileInfo: {
     flex: 1,
   },
   profileName: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: Colors[colorScheme as keyof typeof Colors].text,
-    marginBottom: 6,
+    fontSize: 20,
     fontFamily: FontFamilies.featherBold,
+    color: '#000000',
+    marginBottom: 6,
   },
   profileUsername: {
     fontSize: 16,
-    color: Colors[colorScheme as keyof typeof Colors].textSecondary,
-    marginBottom: 8,
     fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    marginBottom: 8,
   },
   experienceContainer: {
-    gap: 8,
+    alignSelf: 'flex-start',
   },
   profileExperience: {
     fontSize: 14,
-    color: Colors[colorScheme as keyof typeof Colors].tint,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#58CC02',
     fontWeight: '600',
-    backgroundColor: Colors[colorScheme as keyof typeof Colors].backgroundTertiary,
+    backgroundColor: '#F0F9F0',
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  streakContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  streakIcon: {
-    fontSize: 16,
-  },
-  streakText: {
-    fontSize: 14,
-    color: Colors[colorScheme as keyof typeof Colors].streak,
-    fontWeight: '600',
   },
   
-  // Carousel Styles
-  carouselSection: {
-    marginBottom: 30,
+  // Streak Section
+  streakSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
-  carouselSectionTitle: {
+  streakBadge: {
+    alignSelf: 'center',
+  },
+  streakBadgeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  streakBadgeText: {
+    color: 'white',
+    fontSize: 16,
+    fontFamily: FontFamilies.featherBold,
+    marginLeft: 8,
+  },
+  
+  // Achievements Section
+  achievementsSection: {
+    marginBottom: 30,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors[colorScheme as keyof typeof Colors].text,
+    fontFamily: FontFamilies.featherBold,
+    color: '#000000',
     marginBottom: 8,
     textAlign: 'center',
   },
-  carouselSectionSubtitle: {
-    fontSize: 14,
-    color: Colors[colorScheme as keyof typeof Colors].textSecondary,
-    textAlign: 'center',
-    marginBottom: 12,
+  sectionSubtitle: {
+    fontSize: 16,
     fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 20,
   },
-
-  carouselContainer: {
+  cardsContainer: {
     height: 260,
     marginBottom: 10,
   },
-  carouselItem: {
+  cardItem: {
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 0,
   },
-  carouselCard: {
+  achievementCard: {
     width: width - 60,
     height: 220,
     borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  carouselGradient: {
+  cardGradient: {
     flex: 1,
     padding: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  carouselIcon: {
+  cardIcon: {
     fontSize: 48,
     marginBottom: 16,
   },
-  carouselTitle: {
+  cardTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: FontFamilies.featherBold,
     color: '#FFFFFF',
     marginBottom: 8,
     textAlign: 'center',
   },
-  carouselSubtitle: {
-    fontSize: 14,
+  cardSubtitle: {
+    fontSize: 16,
+    fontFamily: FontFamilies.dinRounded,
     color: '#FFFFFF',
     opacity: 0.9,
     marginBottom: 20,
     textAlign: 'center',
   },
-  carouselStats: {
+  cardStats: {
     alignItems: 'center',
   },
-  carouselStatsLabel: {
-    fontSize: 12,
+  cardStatsLabel: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
     color: '#FFFFFF',
     opacity: 0.8,
     marginBottom: 4,
   },
-  carouselStatsValue: {
+  cardStatsValue: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: FontFamilies.featherBold,
     color: '#FFFFFF',
   },
-  carouselIndicators: {
+  cardIndicators: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -599,16 +648,10 @@ const createStyles = (colorScheme: string) => StyleSheet.create({
     borderRadius: 5,
   },
   
-  // Enhanced Stats Grid
-  statsContainer: {
+  // Stats Section
+  statsSection: {
     marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors[colorScheme as keyof typeof Colors].text,
-    marginBottom: 20,
-    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -619,14 +662,16 @@ const createStyles = (colorScheme: string) => StyleSheet.create({
     flex: 1,
     minWidth: (width - 60) / 2,
     borderRadius: 16,
-    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
     elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
-  statCardGradient: {
+  statCardContent: {
     padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
@@ -638,61 +683,51 @@ const createStyles = (colorScheme: string) => StyleSheet.create({
   },
   statValue: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors[colorScheme as keyof typeof Colors].text,
+    fontFamily: FontFamilies.featherBold,
+    color: '#000000',
     marginBottom: 8,
   },
   statLabel: {
     fontSize: 14,
-    color: Colors[colorScheme as keyof typeof Colors].textSecondary,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
     textAlign: 'center',
     fontWeight: '500',
-    fontFamily: FontFamilies.dinRounded,
   },
   
-  // Enhanced Section Styles
-  section: {
-    backgroundColor: Colors[colorScheme as keyof typeof Colors].background,
+  // Account Section
+  accountSection: {
+    backgroundColor: '#F8F9FA',
     borderRadius: 20,
     padding: 24,
-    marginBottom: 20,
+    marginHorizontal: 20,
+    marginBottom: 30,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
   },
-  sectionSubtitle: {
-    fontFamily: FontFamilies.dinRounded,
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
-    marginBottom: 24,
-    color: Colors[colorScheme as keyof typeof Colors].textSecondary,
-  },
-  achievementsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  
-  // Enhanced Info Row Styles
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors[colorScheme as keyof typeof Colors].border,
+    borderBottomColor: '#E5E7EB',
   },
   infoIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors[colorScheme as keyof typeof Colors].backgroundTertiary,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   infoIcon: {
     fontSize: 18,
@@ -702,47 +737,59 @@ const createStyles = (colorScheme: string) => StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    color: Colors[colorScheme as keyof typeof Colors].textSecondary,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
     fontWeight: '500',
     marginBottom: 4,
-    fontFamily: FontFamilies.dinRounded,
   },
   infoValue: {
     fontSize: 16,
-    color: Colors[colorScheme as keyof typeof Colors].text,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#000000',
     fontWeight: '600',
   },
   
-  // Actions
-  actionsContainer: {
+  // Actions Section
+  actionsSection: {
     marginBottom: 100,
-    gap: 20,
-    paddingHorizontal: 10,
+    gap: 16,
+    paddingHorizontal: 20,
   },
   logoutButton: {
-    borderColor: '#58CC02',
     backgroundColor: '#58CC02',
-    shadowColor: '#ffffff',
+    borderRadius: 16,
+    shadowColor: '#58CC02',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
-    borderRadius: 16,
-
   },
   deleteButton: {
-
     alignItems: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: Colors[colorScheme as keyof typeof Colors].border,
+    marginHorizontal:10,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#EF4444',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   deleteButtonText: {
-    color: Colors[colorScheme as keyof typeof Colors].error,
+    color: '#EF4444',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FontFamilies.featherBold,
+  },
+  
+  // Error State
+  errorText: {
+    fontSize: 18,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    textAlign: 'center',
+    marginTop: 100,
   },
 });

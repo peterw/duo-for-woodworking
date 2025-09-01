@@ -4,22 +4,31 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useUserProgressStore } from '@/stores';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Dimensions,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  Extrapolate,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming
+} from 'react-native-reanimated';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
 export default function LessonScreen() {
   const colorScheme = useColorScheme();
+  const {top:topPadding, bottom:bottomPadding} = useSafeAreaInsets()
   const router = useRouter();
   const { lessonId, lessonTitle, lessonColor, lessonIcon, lessonType } = useLocalSearchParams();
   const { completeSkill } = useUserProgressStore();
@@ -28,8 +37,156 @@ export default function LessonScreen() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
-  // Lesson content data
+  // Reanimated animation values for step transitions
+  const stepSlideAnim = useSharedValue(0);
+  const stepScaleAnim = useSharedValue(1);
+  const stepOpacityAnim = useSharedValue(1);
+  const stepNumberScaleAnim = useSharedValue(1);
+  const stepNumberRotationAnim = useSharedValue(0);
+  const progressAnim = useSharedValue(0); // New shared value for progress bar animation
+
+  // Animated styles for step transitions
+  const stepContainerStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: interpolate(stepSlideAnim.value, [0, 1], [0, -50], Extrapolate.CLAMP) },
+        { scale: stepScaleAnim.value }
+      ],
+      opacity: stepOpacityAnim.value,
+    };
+  });
+
+  const stepNumberStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { scale: stepNumberScaleAnim.value },
+        { rotate: `${stepNumberRotationAnim.value}deg` }
+      ],
+    };
+  });
+
+  // Enhanced animated progress bar style with smooth interpolation
+  const progressBarStyle = useAnimatedStyle(() => {
+    return {
+      width: `${progressAnim.value}%`,
+      transform: [
+        { scale: interpolate(progressAnim.value, [0, 100], [0.95, 1], Extrapolate.CLAMP) }
+      ],
+      opacity: interpolate(progressAnim.value, [0, 100], [0.8, 1], Extrapolate.CLAMP),
+    };
+  });
+
+  // Lesson content data - Updated to match actual skill IDs from userProgressStore
   const lessonContent = {
+    'safety-basics': {
+      title: 'Safety Fundamentals',
+      subtitle: 'Essential safety practices for woodworking',
+      steps: [
+        'PPE requirements and usage',
+        'Workspace safety setup',
+        'Tool safety basics',
+        'Emergency procedures',
+        'Dust management'
+      ],
+      questions: [
+        {
+          question: 'What is the most important aspect of woodworking?',
+          options: ['Speed', 'Safety', 'Cost', 'Tools'],
+          correct: 1
+        }
+      ]
+    },
+    'measuring-marking': {
+      title: 'Measuring & Marking',
+      subtitle: 'Precision measuring and layout techniques',
+      steps: [
+        'Tape measure reading',
+        'Square usage and checking',
+        'Marking tools and techniques',
+        'Layout planning',
+        'Cutting line accuracy'
+      ],
+      questions: [
+        {
+          question: 'What is the golden rule of measuring?',
+          options: ['Measure once', 'Measure twice, cut once', 'Guess and check', 'Use any tool'],
+          correct: 1
+        }
+      ]
+    },
+    'hand-sawing': {
+      title: 'Hand Sawing',
+      subtitle: 'Master basic hand saw techniques',
+      steps: [
+        'Saw selection and setup',
+        'Proper grip and stance',
+        'Cutting straight lines',
+        'Cross-cutting techniques',
+        'Rip-cutting techniques'
+      ],
+      questions: [
+        {
+          question: 'What should you do before making a cut?',
+          options: ['Start cutting immediately', 'Mark the cut line', 'Use any saw', 'Cut freehand'],
+          correct: 1
+        }
+      ]
+    },
+    'chiseling': {
+      title: 'Chiseling Basics',
+      subtitle: 'Learn chisel safety and techniques',
+      steps: [
+        'Chisel types and selection',
+        'Sharpening and maintenance',
+        'Safe chiseling techniques',
+        'Mortise cutting',
+        'Clean-up techniques'
+      ],
+      questions: [
+        {
+          question: 'What is the safest way to use a chisel?',
+          options: ['Push towards your body', 'Push away from your body', 'Use both hands', 'Use any grip'],
+          correct: 1
+        }
+      ]
+    },
+    'basic-joinery': {
+      title: 'Basic Joinery',
+      subtitle: 'Simple wood joining methods',
+      steps: [
+        'Butt joint basics',
+        'Lap joint techniques',
+        'Simple dado joints',
+        'Glue application',
+        'Clamping strategies'
+      ],
+      questions: [
+        {
+          question: 'What is the strongest type of joint?',
+          options: ['Butt joint', 'Dado joint', 'Dovetail joint', 'Lap joint'],
+          correct: 2
+        }
+      ]
+    },
+    'sanding-finishing': {
+      title: 'Sanding & Finishing',
+      subtitle: 'Professional finishing techniques',
+      steps: [
+        'Sandpaper grit selection',
+        'Proper sanding techniques',
+        'Surface preparation',
+        'Stain application',
+        'Clear coat finishing'
+      ],
+      questions: [
+        {
+          question: 'What grit sandpaper should you start with?',
+          options: ['Coarse (60-80)', 'Medium (120-150)', 'Fine (220-240)', 'Any grit'],
+          correct: 0
+        }
+      ]
+    },
+    // Keep legacy lesson IDs for backward compatibility
     'start': {
       title: 'Welcome to Woodworking!',
       subtitle: 'Begin your journey into the world of woodworking',
@@ -160,9 +317,84 @@ export default function LessonScreen() {
   const totalSteps = currentLesson?.steps.length || 0;
   const hasQuiz = currentLesson?.questions && currentLesson.questions.length > 0;
 
+  // Smooth animation function for step transitions
+  const animateStepTransition = (nextStep: number) => {
+    // Animate current step out - slower and smoother
+    stepSlideAnim.value = withTiming(1, { duration: 500 }); // Increased from 300ms
+    stepScaleAnim.value = withTiming(0.95, { duration: 500 }); // Increased from 300ms
+    stepOpacityAnim.value = withTiming(0.7, { duration: 500 }); // Increased from 300ms
+    
+    // Animate step number with gentler bounce and rotation
+    stepNumberScaleAnim.value = withSpring(1.15, { // Reduced from 1.2 for gentler effect
+      damping: 12, // Reduced damping for smoother movement
+      stiffness: 120, // Reduced stiffness for slower movement
+      mass: 1.2 // Increased mass for more natural feel
+    });
+    stepNumberRotationAnim.value = withSpring(360, { 
+      damping: 12, // Reduced damping for smoother movement
+      stiffness: 120, // Reduced stiffness for slower movement
+      mass: 1.2 // Increased mass for more natural feel
+    });
+
+    // After animation completes, update step and animate in
+    setTimeout(() => {
+      setCurrentStep(nextStep);
+      
+      // Reset animation values
+      stepSlideAnim.value = 0;
+      stepScaleAnim.value = 0.8;
+      stepOpacityAnim.value = 0;
+      
+      // Animate new step in - slower and smoother
+      stepSlideAnim.value = withTiming(0, { duration: 600 }); // Increased from 400ms
+      stepScaleAnim.value = withSpring(1, { 
+        damping: 18, // Increased damping for smoother movement
+        stiffness: 100, // Reduced stiffness for slower movement
+        mass: 1.5 // Increased mass for more natural feel
+      });
+      stepOpacityAnim.value = withTiming(1, { duration: 600 }); // Increased from 400ms
+      
+      // Animate step number back to normal - smoother
+      stepNumberScaleAnim.value = withSpring(1, { 
+        damping: 18, // Increased damping for smoother movement
+        stiffness: 100, // Reduced stiffness for slower movement
+        mass: 1.5 // Increased mass for more natural feel
+      });
+      stepNumberRotationAnim.value = withSpring(0, { 
+        damping: 18, // Increased damping for smoother movement
+        stiffness: 100, // Reduced stiffness for slower movement
+        mass: 1.5 // Increased mass for more natural feel
+      });
+
+      // Animate progress bar smoothly
+      const newProgress = ((nextStep + 1) / totalSteps) * 100;
+      progressAnim.value = withSpring(newProgress, {
+        damping: 20, // Increased damping for smoother, more controlled movement
+        stiffness: 80, // Reduced stiffness for gentler, more elegant movement
+        mass: 1.5, // Increased mass for more natural, weighty feel
+        overshootClamping: false, // Allow slight overshoot for natural bounce
+        restDisplacementThreshold: 0.1, // More precise stopping
+        restSpeedThreshold: 0.1 // More precise stopping
+      });
+    }, 500); // Increased delay to match new animation duration
+  };
+
+  // Initialize progress bar on component mount with beautiful animation
+  useEffect(() => {
+    const initialProgress = ((currentStep + 1) / totalSteps) * 100;
+    progressAnim.value = withSpring(initialProgress, {
+      damping: 18, // Smooth damping for initial load
+      stiffness: 90, // Gentle stiffness for elegant movement
+      mass: 1.3, // Natural mass for realistic feel
+      overshootClamping: false, // Allow natural overshoot
+      restDisplacementThreshold: 0.05, // Very precise stopping
+      restSpeedThreshold: 0.05 // Very precise stopping
+    });
+  }, []);
+
   const handleNextStep = () => {
     if (currentStep < totalSteps - 1) {
-      setCurrentStep(currentStep + 1);
+      animateStepTransition(currentStep + 1);
     } else if (hasQuiz && !showQuiz) {
       setShowQuiz(true);
     }
@@ -200,7 +432,10 @@ export default function LessonScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    // <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+
+
       <StatusBar translucent backgroundColor={'transparent'} />
       
       {/* Stunning Header with Premium Gradient */}
@@ -215,7 +450,7 @@ export default function LessonScreen() {
         style={styles.headerGradient}
       >
         {/* Premium Header Navigation */}
-        <View style={styles.header}>
+        <View style={[styles.header, {marginTop:topPadding+5}]}>
           <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
             <View style={styles.backButtonInner}>
               <IconSymbol name="chevron.left" size={20} color="#2D3748" />
@@ -225,30 +460,19 @@ export default function LessonScreen() {
                       <View style={styles.headerContent}>
               <View style={styles.headerText}>
                 <Text style={styles.headerTitle}>{currentLesson.title}</Text>
-                <Text style={styles.headerSubtitle}>{currentLesson.subtitle}</Text>
               </View>
             </View>
         </View>
 
         {/* Enhanced Progress Section */}
         <View style={styles.progressSection}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressTitle}>
-              {showQuiz ? 'Quiz Time!' : `Step ${currentStep + 1} of ${totalSteps}`}
-            </Text>
-            <Text style={styles.progressSubtitle}>
-              {showQuiz ? 'Test your knowledge' : 'Keep going, you&apos;re doing great!'}
-            </Text>
-          </View>
           
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
-              <View 
+              <Animated.View 
                 style={[
                   styles.progressFill, 
-                  { 
-                    width: `${((currentStep + 1) / totalSteps) * 100}%`,
-                  }
+                  progressBarStyle
                 ]} 
               />
             </View>
@@ -257,7 +481,7 @@ export default function LessonScreen() {
                 {currentStep + 1} / {totalSteps}
               </Text>
               <Text style={styles.progressPercentage}>
-                {Math.round(((currentStep + 1) / totalSteps) * 100)}%
+                {Math.round(progressAnim.value)}%
               </Text>
             </View>
           </View>
@@ -268,11 +492,11 @@ export default function LessonScreen() {
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         {!showQuiz ? (
           // Premium Lesson Steps
-          <View style={styles.stepContainer}>
+          <Animated.View style={[styles.stepContainer, stepContainerStyle]}>
             <View style={styles.stepHeader}>
-              <View style={styles.stepNumberContainer}>
+              <Animated.View style={[styles.stepNumberContainer, stepNumberStyle]}>
                 <Text style={styles.stepNumberText}>{currentStep + 1}</Text>
-              </View>
+              </Animated.View>
               <Text style={styles.stepLabel}>STEP {currentStep + 1}</Text>
             </View>
             
@@ -294,7 +518,7 @@ export default function LessonScreen() {
                 />
               ))}
             </View>
-          </View>
+          </Animated.View>
         ) : (
           // Premium Quiz Design
           <View style={styles.quizContainer}>
@@ -383,7 +607,7 @@ export default function LessonScreen() {
       </ScrollView>
 
       {/* Premium Action Button */}
-      <View style={styles.actionContainer}>
+      <View style={[styles.actionContainer, {paddingBottom:bottomPadding+5}]}>
         {!showQuiz ? (
           <TouchableOpacity
             style={styles.nextButton}
@@ -403,23 +627,34 @@ export default function LessonScreen() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={styles.completeButton}
+            style={[
+              styles.completeButton,
+              selectedAnswer === null && styles.completeButtonDisabled
+            ]}
             onPress={handleCompleteLesson}
             disabled={selectedAnswer === null}
           >
             <LinearGradient
-              colors={['#48BB78', '#38A169']}
+              colors={selectedAnswer === null ? ['#A0AEC0', '#718096'] : ['#48BB78', '#38A169']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.completeButtonGradient}
+              style={[
+                styles.completeButtonGradient,
+                selectedAnswer === null && styles.completeButtonGradientDisabled
+              ]}
             >
               <IconSymbol name="checkmark.circle.fill" size={20} color="white" />
-              <Text style={styles.completeButtonText}>Complete Lesson</Text>
+              <Text style={[
+                styles.completeButtonText,
+                selectedAnswer === null && styles.completeButtonTextDisabled
+              ]}>
+                {selectedAnswer === null ? 'Select an answer to continue' : 'Complete Lesson'}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         )}
       </View>
-    </SafeAreaView>
+      </View>
   );
 }
 
@@ -431,8 +666,8 @@ const styles = StyleSheet.create({
   
   // Stunning Header Styles
   headerGradient: {
-    paddingTop: 20,
-    paddingBottom: 40,
+    paddingTop: 12, // Reduced from 20 to 12
+    paddingBottom: 24, // Reduced from 40 to 24
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
@@ -443,15 +678,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    marginBottom: 20,
+    marginBottom: 12, // Reduced from 20 to 12
   },
   backButton: {
-    marginRight: 20,
+    marginRight: 16, // Reduced from 20 to 16
   },
   backButtonInner: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36, // Reduced from 44 to 36
+    height: 36, // Reduced from 44 to 36
+    borderRadius: 18, // Reduced from 22 to 18
     backgroundColor: 'rgba(255,255,255,0.95)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -467,12 +702,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerIconContainer: {
-    marginRight: 20,
+    marginRight: 16, // Reduced from 20 to 16
   },
   headerIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 48, // Reduced from 64 to 48
+    height: 48, // Reduced from 64 to 48
+    borderRadius: 24, // Reduced from 32 to 24
     backgroundColor: 'rgba(255,255,255,0.25)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -486,42 +721,42 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24, // Reduced from 28 to 24
     fontWeight: '800',
     color: 'white',
     fontFamily: FontFamilies.dinRounded,
-    marginBottom: 6,
     textShadowColor: 'rgba(0,0,0,0.1)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   headerSubtitle: {
-    fontSize: 18,
+    fontSize: 16, // Reduced from 18 to 16
     color: 'rgba(255,255,255,0.95)',
     fontFamily: FontFamilies.dinRounded,
-    lineHeight: 24,
+    lineHeight: 20, // Reduced from 24 to 20
     fontWeight: '500',
   },
   
   // Enhanced Progress Section
   progressSection: {
     paddingHorizontal: 24,
+    marginTop:10
   },
   progressHeader: {
-    marginBottom: 24,
+    // marginBottom: 10, // Reduced from 24 to 16
   },
   progressTitle: {
-    fontSize: 20,
+    fontSize: 18, // Reduced from 20 to 18
     fontWeight: '700',
     color: 'white',
     fontFamily: FontFamilies.dinRounded,
-    marginBottom: 6,
+    marginBottom: 4, // Reduced from 6 to 4
     textShadowColor: 'rgba(0,0,0,0.1)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   progressSubtitle: {
-    fontSize: 16,
+    fontSize: 14, // Reduced from 16 to 14
     color: 'rgba(255,255,255,0.9)',
     fontFamily: FontFamilies.dinRounded,
     fontWeight: '500',
@@ -531,11 +766,11 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     width: '100%',
-    height: 10,
+    height: 8, // Reduced from 10 to 8
     backgroundColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 5,
+    borderRadius: 4, // Reduced from 5 to 4
     overflow: 'hidden',
-    marginBottom: 16,
+    marginBottom: 12, // Reduced from 16 to 12
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -544,7 +779,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    borderRadius: 5,
+    borderRadius: 4, // Reduced from 5 to 4
     backgroundColor: 'white',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -555,10 +790,10 @@ const styles = StyleSheet.create({
   progressStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 20,
+    gap: 16, // Reduced from 20 to 16
   },
   progressText: {
-    fontSize: 18,
+    fontSize: 16, // Reduced from 18 to 16
     color: 'white',
     fontWeight: '700',
     fontFamily: FontFamilies.dinRounded,
@@ -567,7 +802,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   progressPercentage: {
-    fontSize: 16,
+    fontSize: 14, // Reduced from 16 to 14
     color: 'rgba(255,255,255,0.9)',
     fontFamily: FontFamilies.dinRounded,
     fontWeight: '600',
@@ -840,6 +1075,9 @@ const styles = StyleSheet.create({
     elevation: 8,
     overflow: 'hidden',
   },
+  completeButtonDisabled: {
+    opacity: 0.7,
+  },
   completeButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -848,11 +1086,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 10,
   },
+  completeButtonGradientDisabled: {
+    opacity: 0.7,
+  },
   completeButtonText: {
     color: 'white',
     fontSize: 20,
     fontWeight: '700',
     fontFamily: FontFamilies.dinRounded,
+  },
+  completeButtonTextDisabled: {
+    color: 'rgba(255,255,255,0.7)',
   },
   
   // Error Container

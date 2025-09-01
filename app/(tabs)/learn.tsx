@@ -6,7 +6,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useUserProgressStore } from '@/stores';
 import { useRouter } from 'expo-router';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
   ScrollView,
@@ -14,8 +14,14 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -25,6 +31,63 @@ export default function LearnScreen() {
   const router = useRouter();
   const { completedSkills, completeSkill } = useUserProgressStore();
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
+
+  // Reanimated animation values
+  const modalBackdropOpacity = useSharedValue(0);
+  const modalContentScale = useSharedValue(0.8);
+  const modalContentOpacity = useSharedValue(0);
+
+  // Animated styles
+  const modalBackdropStyle = useAnimatedStyle(() => {
+    return {
+      opacity: modalBackdropOpacity.value,
+    };
+  });
+
+  const modalContentStyle = useAnimatedStyle(() => {
+    return {
+      opacity: modalContentOpacity.value,
+      transform: [
+        { scale: modalContentScale.value }
+      ],
+    };
+  });
+
+  // Animation functions
+  const animateModalIn = () => {
+    modalBackdropOpacity.value = withTiming(1, { duration: 300 });
+    modalContentScale.value = withSpring(1, { 
+      damping: 15, 
+      stiffness: 150,
+      mass: 0.8
+    });
+    modalContentOpacity.value = withTiming(1, { duration: 400 });
+  };
+
+  const animateModalOut = () => {
+    modalBackdropOpacity.value = withTiming(0, { duration: 250 });
+    modalContentScale.value = withSpring(0.8, { 
+      damping: 15, 
+      stiffness: 150 
+    });
+    modalContentOpacity.value = withTiming(0, { duration: 200 });
+  };
+
+  // Handle modal close with animation
+  const handleCloseModal = () => {
+    animateModalOut();
+    // Delay setting selectedLesson to null to allow animation to complete
+    setTimeout(() => {
+      setSelectedLesson(null);
+    }, 250);
+  };
+
+  // Animate modal in when lesson is selected
+  useEffect(() => {
+    if (selectedLesson) {
+      animateModalIn();
+    }
+  }, [selectedLesson]);
 
   // Duolingo-style lesson data with proper state management
   const lessons = [
@@ -318,61 +381,67 @@ export default function LearnScreen() {
       
       {/* Lesson Details Modal - Outside ScrollView */}
       {selectedLesson && (
-        <View style={styles.lessonDetailsModal}>
-          <View style={styles.lessonDetailsContent}>
-            <View style={styles.lessonDetailsHeader}>
-              <View style={[styles.lessonDetailsIcon, { backgroundColor: selectedLesson.color }]}>
-                <IconSymbol name={selectedLesson.icon} size={32} color="white" />
-              </View>
-              <View style={styles.lessonDetailsText}>
-                <Text style={styles.lessonDetailsTitle}>{selectedLesson.title}</Text>
-                <Text style={styles.lessonDetailsSubtitle}>
-                  {selectedLesson.type === 'start' && 'Begin your woodworking journey'}
-                  {selectedLesson.type === 'lesson' && 'Learn essential woodworking skills'}
-                  {selectedLesson.type === 'chest' && 'Collect your rewards'}
-                  {selectedLesson.type === 'character' && 'Meet your woodworking mentor'}
-                </Text>
-              </View>
-            </View>
-            
-            <View style={styles.lessonDetailsActions}>
-              {selectedLesson.isUnlocked && !selectedLesson.isCompleted && (
-                <TouchableOpacity
-                  style={[styles.startLessonButton, { backgroundColor: selectedLesson.color }]}
-                  onPress={() => handleStartLesson(selectedLesson)}
-                >
-                  <Text style={styles.startLessonButtonText}>
-                    {selectedLesson.type === 'start' && 'Start Journey'}
-                    {selectedLesson.type === 'lesson' && 'Start Lesson'}
-                    {selectedLesson.type === 'chest' && 'Open Chest'}
-                    {selectedLesson.type === 'character' && 'Meet Character'}
+        <Animated.View style={[styles.lessonDetailsModal, modalBackdropStyle]}>
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            onPress={handleCloseModal}
+            activeOpacity={1}
+          >
+            <Animated.View style={[styles.lessonDetailsContent, modalContentStyle]}>
+              <View style={styles.lessonDetailsHeader}>
+                <View style={[styles.lessonDetailsIcon, { backgroundColor: selectedLesson.color }]}>
+                  <IconSymbol name={selectedLesson.icon} size={32} color="white" />
+                </View>
+                <View style={styles.lessonDetailsText}>
+                  <Text style={styles.lessonDetailsTitle}>{selectedLesson.title}</Text>
+                  <Text style={styles.lessonDetailsSubtitle}>
+                    {selectedLesson.type === 'start' && 'Begin your woodworking journey'}
+                    {selectedLesson.type === 'lesson' && 'Learn essential woodworking skills'}
+                    {selectedLesson.type === 'chest' && 'Collect your rewards'}
+                    {selectedLesson.type === 'character' && 'Meet your woodworking mentor'}
                   </Text>
+                </View>
+              </View>
+              
+              <View style={styles.lessonDetailsActions}>
+                {selectedLesson.isUnlocked && !selectedLesson.isCompleted && (
+                  <TouchableOpacity
+                    style={[styles.startLessonButton, { backgroundColor: selectedLesson.color }]}
+                    onPress={() => handleStartLesson(selectedLesson)}
+                  >
+                    <Text style={styles.startLessonButtonText}>
+                      {selectedLesson.type === 'start' && 'Start Journey'}
+                      {selectedLesson.type === 'lesson' && 'Start Lesson'}
+                      {selectedLesson.type === 'chest' && 'Open Chest'}
+                      {selectedLesson.type === 'character' && 'Meet Character'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                
+                {selectedLesson.isCompleted && (
+                  <View style={[styles.completedButton, { backgroundColor: '#58CC02' }]}>
+                    <IconSymbol name="checkmark.circle.fill" size={20} color="white" />
+                    <Text style={styles.completedButtonText}>Completed!</Text>
+                  </View>
+                )}
+                
+                {!selectedLesson.isUnlocked && (
+                  <View style={styles.lockedButton}>
+                    <IconSymbol name="lock.fill" size={20} color="#999" />
+                    <Text style={styles.lockedButtonText}>Complete previous lessons to unlock</Text>
+                  </View>
+                )}
+                
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={handleCloseModal}
+                >
+                  <Text style={styles.closeButtonText}>Close</Text>
                 </TouchableOpacity>
-              )}
-              
-              {selectedLesson.isCompleted && (
-                <View style={[styles.completedButton, { backgroundColor: '#58CC02' }]}>
-                  <IconSymbol name="checkmark.circle.fill" size={20} color="white" />
-                  <Text style={styles.completedButtonText}>Completed!</Text>
-                </View>
-              )}
-              
-              {!selectedLesson.isUnlocked && (
-                <View style={styles.lockedButton}>
-                  <IconSymbol name="lock.fill" size={20} color="#999" />
-                  <Text style={styles.lockedButtonText}>Complete previous lessons to unlock</Text>
-                </View>
-              )}
-              
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setSelectedLesson(null)}
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+              </View>
+            </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
       )}
       
 
@@ -494,15 +563,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lessonNodeContainer: {
-    marginBottom: 15,
-    minHeight: 140,
+    marginBottom: 8, // Reduced from 15 to 8 for tighter spacing
+    minHeight: 120, // Reduced from 140 to 120 for more compact layout
     justifyContent: 'center',
     width: '100%',
-    maxWidth: 300,
-    paddingVertical: 10,
+    maxWidth: 300, // Reduced from 10 to 6 for tighter spacing
   },
   connectionLine: {
-    marginBottom: 15,
+    marginBottom: 10, // Reduced from 15 to 10 for tighter spacing
     borderRadius: 1,
     alignSelf: 'center',
   },
@@ -551,6 +619,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   lessonDetailsContent: {
     backgroundColor: 'white',
