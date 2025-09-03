@@ -92,6 +92,13 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
+                name="settings"
+                options={{
+                  headerShown: false,
+                  gestureEnabled: true,
+                }}
+              />
+              <Stack.Screen
                 name="+not-found"
                 options={{
                   title: 'Oops!',

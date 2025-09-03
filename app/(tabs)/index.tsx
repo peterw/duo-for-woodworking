@@ -4,13 +4,14 @@ import { LevelModal, ProjectsModal, SkillModal, XPModal } from '@/components/mod
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useUserProgressStore, woodworkingSkills } from '@/stores';
+import { useUserProgressStore } from '@/stores';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,7 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
-interface Skill {
+interface HomeSkill {
   id: string;
   title: string;
   description: string;
@@ -36,216 +37,6 @@ interface Skill {
   level: number; // 1-5 like Duolingo
 }
 
-// Enhanced project data with proper categorization
-const enhancedProjects = [
-  // Furniture Projects
-  {
-    id: 'coffee-table',
-    title: 'Modern Coffee Table',
-    description: 'A sleek coffee table with clean lines and hidden storage',
-    difficulty: 'Intermediate',
-    estimatedTime: '8-12 hours',
-    materials: ['Oak hardwood', 'Plywood', 'Wood glue', 'Finish'],
-    tools: ['Table saw', 'Router', 'Clamps', 'Sander'],
-    skills: ['advanced-joinery', 'power-tools-intro', 'sanding-finishing'],
-    category: 'furniture',
-    image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=300&fit=crop',
-    materialCost: 'Medium',
-    timeRange: { min: 8, max: 12 },
-    lessonSlices: []
-  },
-  {
-    id: 'bookshelf',
-    title: 'Floating Bookshelf',
-    description: 'A minimalist bookshelf that appears to float on the wall',
-    difficulty: 'Beginner',
-    estimatedTime: '4-6 hours',
-    materials: ['Pine boards', 'Wall brackets', 'Screws', 'Paint'],
-    tools: ['Circular saw', 'Drill', 'Level', 'Paintbrush'],
-    skills: ['measuring-marking', 'basic-joinery', 'sanding-finishing'],
-    category: 'furniture',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 4, max: 6 },
-    lessonSlices: []
-  },
-  {
-    id: 'dining-chair',
-    title: 'Rustic Dining Chair',
-    description: 'A comfortable dining chair with traditional joinery',
-    difficulty: 'Advanced',
-    estimatedTime: '12-16 hours',
-    materials: ['Hardwood', 'Wood glue', 'Wedges', 'Finish'],
-    tools: ['Chisels', 'Mallet', 'Clamps', 'Hand planes'],
-    skills: ['advanced-joinery', 'chiseling', 'sanding-finishing'],
-    category: 'furniture',
-    image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=300&fit=crop',
-    materialCost: 'Medium',
-    timeRange: { min: 12, max: 16 },
-    lessonSlices: []
-  },
-
-  // Decorative Projects
-  {
-    id: 'wooden-sign',
-    title: 'Personalized Wooden Sign',
-    description: 'Create a custom sign with your favorite quote or family name',
-    difficulty: 'Beginner',
-    estimatedTime: '2-3 hours',
-    materials: ['Pine board', 'Stain', 'Paint', 'Hanging hardware'],
-    tools: ['Jigsaw', 'Sander', 'Paintbrushes', 'Drill'],
-    skills: ['measuring-marking', 'hand-sawing', 'sanding-finishing'],
-    category: 'decorative',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 2, max: 3 },
-    lessonSlices: []
-  },
-  {
-    id: 'wall-art',
-    title: 'Geometric Wall Art',
-    description: 'Modern geometric patterns made from different wood species',
-    difficulty: 'Intermediate',
-    estimatedTime: '6-8 hours',
-    materials: ['Various hardwoods', 'Wood glue', 'Backing board', 'Finish'],
-    tools: ['Table saw', 'Miter saw', 'Clamps', 'Sander'],
-    skills: ['power-tools-intro', 'basic-joinery', 'sanding-finishing'],
-    category: 'decorative',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Medium',
-    timeRange: { min: 6, max: 8 },
-    lessonSlices: []
-  },
-
-  // Outdoor Projects
-  {
-    id: 'garden-bench',
-    title: 'Garden Bench',
-    description: 'A sturdy bench perfect for your garden or patio',
-    difficulty: 'Intermediate',
-    estimatedTime: '10-14 hours',
-    materials: ['Cedar or pressure-treated lumber', 'Screws', 'Finish'],
-    tools: ['Circular saw', 'Drill', 'Clamps', 'Sander'],
-    skills: ['power-tools-intro', 'basic-joinery', 'sanding-finishing'],
-    category: 'outdoor',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop',
-    materialCost: 'Medium',
-    timeRange: { min: 10, max: 14 },
-    lessonSlices: []
-  },
-  {
-    id: 'planter-box',
-    title: 'Raised Planter Box',
-    description: 'A raised garden bed for growing vegetables and flowers',
-    difficulty: 'Beginner',
-    estimatedTime: '3-5 hours',
-    materials: ['Cedar boards', 'Screws', 'Landscape fabric', 'Soil'],
-    tools: ['Circular saw', 'Drill', 'Measuring tape', 'Level'],
-    skills: ['measuring-marking', 'basic-joinery'],
-    category: 'outdoor',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 3, max: 5 },
-    lessonSlices: []
-  },
-
-  // Storage Projects
-  {
-    id: 'jewelry-box',
-    title: 'Jewelry Box with Dividers',
-    description: 'A beautiful box with custom dividers for organizing jewelry',
-    difficulty: 'Intermediate',
-    estimatedTime: '6-8 hours',
-    materials: ['Hardwood', 'Felt lining', 'Hinges', 'Finish'],
-    tools: ['Table saw', 'Router', 'Chisels', 'Sander'],
-    skills: ['advanced-joinery', 'chiseling', 'sanding-finishing'],
-    category: 'storage',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Medium',
-    timeRange: { min: 6, max: 8 },
-    lessonSlices: []
-  },
-  {
-    id: 'shoe-rack',
-    title: 'Shoe Storage Rack',
-    description: 'Organize your shoes with this simple rack',
-    difficulty: 'Beginner',
-    estimatedTime: '2-4 hours',
-    materials: ['Pine boards', 'Screws', 'Paint or stain'],
-    tools: ['Circular saw', 'Drill', 'Sander', 'Paintbrush'],
-    skills: ['measuring-marking', 'basic-joinery', 'sanding-finishing'],
-    category: 'storage',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 2, max: 4 },
-    lessonSlices: []
-  },
-
-  // Toys & Games Projects
-  {
-    id: 'wooden-puzzle',
-    title: 'Wooden Puzzle',
-    description: 'A custom puzzle with interlocking pieces',
-    difficulty: 'Beginner',
-    estimatedTime: '3-4 hours',
-    materials: ['Plywood', 'Paint', 'Clear finish'],
-    tools: ['Scroll saw', 'Sander', 'Paintbrushes'],
-    skills: ['measuring-marking', 'hand-sawing', 'sanding-finishing'],
-    category: 'toys',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 3, max: 4 },
-    lessonSlices: []
-  },
-  {
-    id: 'chess-set',
-    title: 'Wooden Chess Set',
-    description: 'Handcrafted chess pieces and board',
-    difficulty: 'Advanced',
-    estimatedTime: '20-30 hours',
-    materials: ['Various hardwoods', 'Wood glue', 'Finish'],
-    tools: ['Lathe', 'Chisels', 'Sander', 'Drill'],
-    skills: ['advanced-joinery', 'chiseling', 'sanding-finishing'],
-    category: 'toys',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'High',
-    timeRange: { min: 20, max: 30 },
-    lessonSlices: []
-  },
-
-  // Kitchen Projects
-  {
-    id: 'cutting-board',
-    title: 'Simple Cutting Board',
-    description: 'A beautiful and functional cutting board perfect for beginners',
-    difficulty: 'Beginner',
-    estimatedTime: '2-3 hours',
-    materials: ['Hardwood (maple, walnut)', 'Food-safe oil', 'Sandpaper'],
-    tools: ['Hand saw', 'Chisel', 'Sandpaper', 'Clamps'],
-    skills: ['safety-basics', 'measuring-marking', 'hand-sawing', 'sanding-finishing'],
-    category: 'kitchen',
-    image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 2, max: 3 },
-    lessonSlices: []
-  },
-  {
-    id: 'spice-rack',
-    title: 'Wall-Mounted Spice Rack',
-    description: 'Organize your spices with this wall-mounted rack',
-    difficulty: 'Beginner',
-    estimatedTime: '3-4 hours',
-    materials: ['Pine boards', 'Screws', 'Paint or stain'],
-    tools: ['Circular saw', 'Drill', 'Sander', 'Paintbrush'],
-    skills: ['measuring-marking', 'basic-joinery', 'sanding-finishing'],
-    category: 'kitchen',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 3, max: 4 },
-    lessonSlices: []
-  },
-];
-
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const { 
@@ -257,24 +48,60 @@ export default function HomeScreen() {
     checkDailyLogin,
     completedSkills,
     skillsCompleted,
-    totalProjects
+    totalProjects,
+    skills,
+    projects,
+    categories,
+    isLoading,
+    fetchAllData
   } = useUserProgressStore();
 
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<HomeSkill | null>(null);
   const [showSkillModal, setShowSkillModal] = useState(false);
   const [recentProjects, setRecentProjects] = useState<any[]>([]);
   const [greeting, setGreeting] = useState('Good morning');
   const [showLevelModal, setShowLevelModal] = useState(false);
   const [showXPModal, setShowXPModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
+  const [homeSkills, setHomeSkills] = useState<HomeSkill[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Calculate total completed projects
+  const getTotalCompletedProjects = () => {
+    if (projects.length === 0) return 0;
+    
+    return projects.filter(project => {
+      if (project.lessonSlices && project.lessonSlices.length > 0) {
+        const completedSlices = project.lessonSlices.filter((slice: any) => slice.isCompleted);
+        const progress = (completedSlices.length / project.lessonSlices.length) * 100;
+        return progress === 100;
+      }
+      return false;
+    }).length;
+  };
 
   useEffect(() => {
     checkDailyLogin();
     updateGreeting();
-    initializeSkills();
-    loadRecentProjects();
-  }, [checkDailyLogin]);
+    fetchAllData();
+  }, [checkDailyLogin, fetchAllData]);
+
+  useEffect(() => {
+    if (skills.length > 0) {
+      initializeSkills();
+      loadRecentProjects();
+    }
+  }, [skills, projects]);
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (skills.length > 0) {
+        initializeSkills();
+        loadRecentProjects();
+      }
+    }, [skills, projects])
+  );
 
   const updateGreeting = () => {
     const hour = new Date().getHours();
@@ -284,10 +111,21 @@ export default function HomeScreen() {
   };
 
   const initializeSkills = () => {
-    // Map woodworking skills to home screen format
-    const mappedSkills: Skill[] = woodworkingSkills.slice(0, 6).map((skill, index) => {
+    // Map Firestore skills to home screen format
+    if (skills.length === 0) return;
+    
+    const mappedSkills: HomeSkill[] = skills.slice(0, 6).map((skill, index) => {
       const isCompleted = completedSkills.includes(skill.id);
-      const isLocked = index > 0 && !completedSkills.includes(woodworkingSkills[index - 1].id);
+      const isLocked = index > 0 && !completedSkills.includes(skills[index - 1].id);
+      
+      // Calculate real progress based on completed microSteps
+      let progress = 0;
+      if (skill.microSteps && skill.microSteps.length > 0) {
+        const completedSteps = skill.microSteps.filter((step: any) => step.isCompleted);
+        progress = Math.round((completedSteps.length / skill.microSteps.length) * 100);
+      } else if (isCompleted) {
+        progress = 100;
+      }
       
       return {
         id: skill.id,
@@ -297,24 +135,41 @@ export default function HomeScreen() {
         color: getSkillColor(index),
         isLocked,
         isCompleted,
-        progress: isCompleted ? 100 : Math.floor(Math.random() * 80),
+        progress,
         xpReward: skill.xpReward,
-        lessons: skill.microSteps.length,
+        lessons: skill.microSteps?.length || 0,
         crowns: isCompleted ? Math.floor(Math.random() * 3) + 1 : 0,
         level: Math.floor(Math.random() * 3) + 1,
       };
     });
     
-    setSkills(mappedSkills);
+    setHomeSkills(mappedSkills);
   };
 
   const loadRecentProjects = () => {
-    // Get recent projects for quick access
-    const recent = enhancedProjects.slice(0, 3).map(project => ({
-      ...project,
-      isStarted: true, // Show all recent projects as started
-      progress: Math.floor(Math.random() * 100),
-    }));
+    // Get recent projects for quick access from Firestore
+    if (projects.length === 0) return;
+    
+    const recent = projects.slice(0, 3).map(project => {
+      // Calculate actual progress based on completed lesson slices
+      let progress = 0;
+      let isStarted = false;
+      let isCompleted = false;
+      
+      if (project.lessonSlices && project.lessonSlices.length > 0) {
+        const completedSlices = project.lessonSlices.filter((slice: any) => slice.isCompleted);
+        progress = Math.round((completedSlices.length / project.lessonSlices.length) * 100);
+        isStarted = completedSlices.length > 0 || progress > 0;
+        isCompleted = progress === 100;
+      }
+      
+      return {
+        ...project,
+        isStarted,
+        isCompleted,
+        progress,
+      };
+    });
     setRecentProjects(recent);
   };
 
@@ -323,7 +178,7 @@ export default function HomeScreen() {
     return colors[index % colors.length];
   };
 
-  const handleSkillPress = (skill: Skill) => {
+  const handleSkillPress = (skill: HomeSkill) => {
     if (skill.isLocked) {
       Alert.alert('Skill Locked', 'Complete previous skills to unlock this one!');
       return;
@@ -335,7 +190,7 @@ export default function HomeScreen() {
 
   const handleContinueLearning = () => {
     // Find the next skill to learn
-    const nextSkill = skills.find(skill => !skill.isLocked && !skill.isCompleted);
+    const nextSkill = homeSkills.find(skill => !skill.isLocked && !skill.isCompleted);
     if (nextSkill) {
       setSelectedSkill(nextSkill);
       setShowSkillModal(true);
@@ -354,6 +209,21 @@ export default function HomeScreen() {
 
   const handleViewAllSkills = () => {
     router.push('/(tabs)/learn');
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchAllData();
+      if (skills.length > 0) {
+        initializeSkills();
+        loadRecentProjects();
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const renderHeader = () => (
@@ -383,19 +253,9 @@ export default function HomeScreen() {
     </View>
   );
 
-
-
-
-
-
-
-
-
-
-
   const renderContinueButton = () => {
     // Find the next skill to learn
-    const nextSkill = skills.find(skill => !skill.isLocked && !skill.isCompleted);
+    const nextSkill = homeSkills.find(skill => !skill.isLocked && !skill.isCompleted);
     const buttonText = nextSkill 
       ? `Continue ${nextSkill.title}` 
       : 'View All Skills';
@@ -417,19 +277,32 @@ export default function HomeScreen() {
     );
   };
 
-
-
-
-
-
-
-
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading your woodworking journey...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
       
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#58CC02']}
+            tintColor="#58CC02"
+          />
+        }
+      >
         <StatsCards
           level={level}
           totalXP={totalXP}
@@ -440,7 +313,7 @@ export default function HomeScreen() {
         />
         <ProgressSection totalXP={totalXP} />
         <SkillTree
-          skills={skills}
+          skills={homeSkills}
           onSkillPress={handleSkillPress}
           onViewAllSkills={handleViewAllSkills}
         />
@@ -456,6 +329,27 @@ export default function HomeScreen() {
           dailyGoals={dailyGoals}
           onCompleteGoal={completeDailyGoal}
         />
+        
+        {/* Projects Summary */}
+        <View style={styles.projectsSummary}>
+          <Text style={styles.projectsSummaryTitle}>Your Projects</Text>
+          <View style={styles.projectsSummaryStats}>
+            <View style={styles.projectsSummaryItem}>
+              <Text style={styles.projectsSummaryNumber}>{projects.length}</Text>
+              <Text style={styles.projectsSummaryLabel}>Total</Text>
+            </View>
+            <View style={styles.projectsSummaryItem}>
+              <Text style={styles.projectsSummaryNumber}>{getTotalCompletedProjects()}</Text>
+              <Text style={styles.projectsSummaryLabel}>Completed</Text>
+            </View>
+            <View style={styles.projectsSummaryItem}>
+              <Text style={styles.projectsSummaryNumber}>
+                {projects.length > 0 ? Math.round((getTotalCompletedProjects() / projects.length) * 100) : 0}%
+              </Text>
+              <Text style={styles.projectsSummaryLabel}>Success Rate</Text>
+            </View>
+          </View>
+        </View>
         
         <AICoach />
       </ScrollView>
@@ -488,7 +382,7 @@ export default function HomeScreen() {
         onClose={() => setShowProjectsModal(false)}
         totalProjects={totalProjects}
         recentProjects={recentProjects}
-        availableProjects={enhancedProjects.length}
+        availableProjects={projects.length}
       />
     </SafeAreaView>
   );
@@ -498,6 +392,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#666',
+    fontFamily: FontFamilies.dinRounded,
   },
   header: {
     flexDirection: 'row',
@@ -574,9 +478,37 @@ const styles = StyleSheet.create({
     fontFamily: FontFamilies.featherBold,
     marginRight: 8,
   },
-
-
-
-
+  projectsSummary: {
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  projectsSummaryTitle: {
+    fontSize: 20,
+    fontFamily: FontFamilies.featherBold,
+    color: '#000000',
+    marginBottom: 16,
+  },
+  projectsSummaryStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 16,
+  },
+  projectsSummaryItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  projectsSummaryNumber: {
+    fontSize: 24,
+    fontFamily: FontFamilies.featherBold,
+    color: '#58CC02',
+    marginBottom: 4,
+  },
+  projectsSummaryLabel: {
+    fontSize: 12,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+  },
 });
 

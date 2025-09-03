@@ -4,7 +4,7 @@ import { Colors } from '@/constants/Colors';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useUserProgressStore } from '@/stores';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -29,8 +29,18 @@ const { width } = Dimensions.get('window');
 export default function LearnScreen() {
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const { completedSkills, completeSkill } = useUserProgressStore();
+  const { 
+    completedSkills, 
+    completeSkill,
+    lessonContent,
+    isLoading,
+    fetchLessonContent
+  } = useUserProgressStore();
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
+
+  useEffect(() => {
+    fetchLessonContent();
+  }, [fetchLessonContent]);
 
   // Reanimated animation values
   const modalBackdropOpacity = useSharedValue(0);
@@ -89,102 +99,87 @@ export default function LearnScreen() {
     }
   }, [selectedLesson]);
 
-  // Duolingo-style lesson data with proper state management
-  const lessons = [
-    {
+  // Add focus listener to refresh lessons when returning to this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('🔄 Learn screen focused, refreshing lessons...');
+      // The lessons will be regenerated with updated completedSkills when the component re-renders
+    }, [completedSkills])
+  );
+
+  // Generate lessons from Firestore lessonContent data
+  const getLessons = () => {
+    if (!lessonContent || lessonContent.length === 0) {
+      return [];
+    }
+      
+    const lessons = [];
+    
+    // Add start lesson
+    lessons.push({
       id: 'start',
       title: 'START',
       type: 'start',
       isCompleted: completedSkills.includes('start'),
-      isUnlocked: true,
+      isUnlocked: true, // START is always unlocked
       icon: 'star.fill',
       color: '#58CC02',
       xpReward: 0,
       description: 'Begin your woodworking journey',
-    },
-    {
-      id: 'tool-safety',
-      title: 'Tool Safety',
-      type: 'lesson',
-      isCompleted: completedSkills.includes('tool-safety'),
-      isUnlocked: true,
-      icon: 'hammer.fill',
-      color: '#FF9600',
-      xpReward: 10,
-      description: 'Learn essential safety practices for using hand tools and power tools',
-    },
-    {
-      id: 'measuring',
-      title: 'Measuring',
-      type: 'lesson',
-      isCompleted: completedSkills.includes('measuring'),
-      isUnlocked: completedSkills.includes('tool-safety'),
-      icon: 'ruler.fill',
-      color: '#FF9600',
-      xpReward: 10,
-      description: 'Master the fundamentals of accurate measurement and marking techniques',
-    },
-    {
-      id: 'sawing',
-      title: 'Sawing',
-      type: 'lesson',
-      isCompleted: completedSkills.includes('sawing'),
-      isUnlocked: completedSkills.includes('measuring'),
-      icon: 'scissors',
-      color: '#FF9600',
-      xpReward: 15,
-      description: 'Learn proper sawing techniques for different types of cuts and materials',
-    },
-    {
-      id: 'chest-1',
-      title: 'Chest',
-      type: 'chest',
-      isCompleted: completedSkills.includes('chest-1'),
-      isUnlocked: completedSkills.includes('sawing'),
-      icon: 'shippingbox.fill',
-      color: '#FF4B4B',
-      xpReward: 25,
-      description: 'Collect your rewards for completing the first section',
-    },
-    {
-      id: 'joinery',
-      title: 'Joinery',
-      type: 'lesson',
-      isCompleted: completedSkills.includes('joinery'),
-      isUnlocked: completedSkills.includes('chest-1'),
-      icon: 'square.stack.3d.up.fill',
-      color: '#FF9600',
-      xpReward: 20,
-      description: 'Explore fundamental woodworking joints and their applications',
-    },
-    {
-      id: 'character-1',
-      title: 'Owl Master',
-      type: 'character',
-      isCompleted: completedSkills.includes('character-1'),
-      isUnlocked: completedSkills.includes('joinery'),
-      icon: 'person.fill',
-      color: '#1CB0F6',
-      xpReward: 0,
-      description: 'Meet your woodworking mentor and unlock new techniques',
-    },
-    {
-      id: 'finishing',
-      title: 'Finishing',
-      type: 'lesson',
-      isCompleted: completedSkills.includes('finishing'),
-      isUnlocked: completedSkills.includes('character-1'),
-      icon: 'paintbrush.fill',
-      color: '#FF9600',
-      xpReward: 25,
-      description: 'Learn wood finishing techniques and surface preparation',
-    },
-  ];
+    });
+    
+      // Add lesson content as lessons with proper progression
+  lessonContent.forEach((lesson, index) => {
+    const isCompleted = completedSkills.includes(lesson.skillId);
+    
+    // Progressive unlocking: Only unlock the next lesson after completing the current one
+    let isUnlocked = false;
+    if (index === 0) {
+      // First lesson unlocks after completing START
+      isUnlocked = completedSkills.includes('start');
+    } else {
+      // Other lessons unlock progressively - each lesson unlocks the next one
+      // This creates a proper progression where users must complete each lesson to advance
+      isUnlocked = completedSkills.includes(lessonContent[index - 1].skillId);
+    }
+      
+      lessons.push({
+        id: lesson.skillId,
+        title: lesson.title,
+        type: 'lesson',
+        isCompleted,
+        isUnlocked,
+        icon: getLessonIcon(lesson.skillId),
+        color: getSkillColor(index),
+        xpReward: lesson.xpReward,
+        description: lesson.subtitle,
+      });
+    });
+    return lessons;
+  };
+
+  const getSkillColor = (index: number) => {
+    const colors = ['#FF6B35', '#1CB0F6', '#58CC02', '#FF9600', '#CE82FF', '#A274FF'];
+    return colors[index % colors.length];
+  };
+
+  const getLessonIcon = (skillId: string) => {
+    const iconMap: { [key: string]: string } = {
+      'safety-basics': 'shield.fill',
+      'measuring-marking': 'ruler.fill',
+      'hand-sawing': 'scissors',
+      'chiseling': 'hand.raised.fill',
+      'basic-joinery': 'link',
+      'sanding-finishing': 'hand.raised.fill'
+    };
+    return iconMap[skillId] || 'hammer.fill';
+  };
+
+  const lessons = getLessons();
 
 
 
   const handleStartLesson = (lesson: any) => {
-    console.log('Starting lesson:', lesson.title);
     // Navigate to lesson screen with lesson data
     router.push({
       pathname: '/woodworking-project/lesson-screen',
@@ -328,7 +323,23 @@ export default function LearnScreen() {
 
 
     
+    if (isLoading) {
     return (
+      <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+        <StatusBar translucent backgroundColor={'transparent'} />
+        <Header 
+          title="Learn" 
+          subtitle="Master woodworking skills step by step"
+          showSafeArea={false}
+        />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading your learning path...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
       <StatusBar translucent backgroundColor={'transparent'} />
       
@@ -339,36 +350,17 @@ export default function LearnScreen() {
         showSafeArea={false}
       />
       
-      {/* Duolingo-style Progress Header */}
+      {/* Professional Progress Header */}
       <View style={styles.progressHeader}>
         <View style={styles.progressHeaderContent}>
           <View style={styles.progressHeaderLeft}>
             <Text style={styles.sectionTitle}>Section 1: Beginner Woodworker</Text>
             <Text style={styles.progressText}>
-              {completedSkills.length} of {lessons.length} lessons completed
+              {completedSkills.filter(skill => skill !== 'start').length} of {lessonContent.length} lessons completed
             </Text>
-              </View>
-          <View style={styles.progressHeaderRight}>
-            {/* Streak */}
-            <View style={styles.headerItem}>
-              <IconSymbol name="flame.fill" size={20} color="#FF4B4B" />
-              <Text style={styles.headerText}>7</Text>
-              </View>
-            
-            {/* Coins */}
-            <View style={styles.headerItem}>
-              <IconSymbol name="leaf.fill" size={20} color="#FFD700" />
-              <Text style={styles.headerText}>1,250</Text>
-            </View>
-            
-            {/* Lives */}
-            <View style={styles.headerItem}>
-              <IconSymbol name="heart.fill" size={20} color="#FF4B4B" />
-              <Text style={styles.headerText}>5</Text>
           </View>
         </View>
-                  </View>
-            </View>
+      </View>
         
       {/* Main Learning Path */}
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -511,32 +503,17 @@ const styles = StyleSheet.create({
   },
   progressHeaderContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   progressHeaderLeft: {
-    flex: 1,
-  },
-  progressHeaderRight: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 20,
-  },
-  headerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  headerText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
   sectionTitle: {
     color: 'white',
     fontSize: 18,
-    fontWeight: '700',
-    fontFamily: FontFamilies.dinRounded,
+    fontWeight: '800',
+    fontFamily: FontFamilies.featherBold,
   },
   progressText: {
     color: 'white',
@@ -762,6 +739,14 @@ const styles = StyleSheet.create({
     color: '#999',
     fontFamily: FontFamilies.dinRounded,
   },
-  
-
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#666',
+    fontFamily: FontFamilies.dinRounded,
+  },
 });

@@ -8,17 +8,19 @@ import { Colors } from '@/constants/Colors';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useUserProgressStore } from '@/stores';
+import type { Project } from '@/stores/userProgressStore';
+import { getCategoryDisplayInfo } from '@/utils/categoryMapping';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Dimensions,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -34,291 +36,7 @@ interface ProjectCategory {
   color: string;
 }
 
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
-  estimatedTime: string;
-  materials: string[];
-  tools: string[];
-  skills: string[];
-  lessonSlices: any[];
-  image: string;
-  category: string;
-  materialCost: 'Low' | 'Medium' | 'High';
-  timeRange: {
-    min: number;
-    max: number;
-  };
-}
 
-const projectCategories: ProjectCategory[] = [
-  {
-    id: 'furniture',
-    title: 'Furniture',
-    description: 'Tables, chairs, cabinets, and more',
-    icon: 'chair.lounge',
-    projectCount: 24,
-    difficulty: 'Intermediate',
-    color: '#8B4513', // Oak brown
-  },
-  {
-    id: 'decorative',
-    title: 'Decorative',
-    description: 'Wall art, signs, and decorative items',
-    icon: 'paintbrush',
-    projectCount: 18,
-    difficulty: 'Beginner',
-    color: '#D2691E', // Cedar brown
-  },
-  {
-    id: 'outdoor',
-    title: 'Outdoor',
-    description: 'Decks, pergolas, and garden items',
-    icon: 'leaf',
-    projectCount: 15,
-    difficulty: 'Advanced',
-    color: '#228B22', // Pine green
-  },
-  {
-    id: 'storage',
-    title: 'Storage',
-    description: 'Boxes, shelves, and organizers',
-    icon: 'cube.box',
-    projectCount: 22,
-    difficulty: 'Beginner',
-    color: '#4169E1', // Maple blue
-  },
-  {
-    id: 'toys',
-    title: 'Toys & Games',
-    description: 'Wooden toys and game pieces',
-    icon: 'gamecontroller',
-    projectCount: 12,
-    difficulty: 'Beginner',
-    color: '#FF6347', // Walnut red
-  },
-  {
-    id: 'kitchen',
-    title: 'Kitchen & Dining',
-    description: 'Cutting boards, utensils, and more',
-    icon: 'fork.knife',
-    projectCount: 20,
-    difficulty: 'Intermediate',
-    color: '#CD853F', // Cherry brown
-  },
-];
-
-// Enhanced project data with more projects and proper categorization
-const enhancedProjects: Project[] = [
-  // Furniture Projects
-  {
-    id: 'coffee-table',
-    title: 'Modern Coffee Table',
-    description: 'A sleek coffee table with clean lines and hidden storage',
-    difficulty: 'Intermediate',
-    estimatedTime: '8-12 hours',
-    materials: ['Oak hardwood', 'Plywood', 'Wood glue', 'Finish'],
-    tools: ['Table saw', 'Router', 'Clamps', 'Sander'],
-    skills: ['advanced-joinery', 'power-tools-intro', 'sanding-finishing'],
-    category: 'furniture',
-    image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=300&fit=crop',
-    materialCost: 'Medium',
-    timeRange: { min: 8, max: 12 },
-    lessonSlices: []
-  },
-  {
-    id: 'bookshelf',
-    title: 'Floating Bookshelf',
-    description: 'A minimalist bookshelf that appears to float on the wall',
-    difficulty: 'Beginner',
-    estimatedTime: '4-6 hours',
-    materials: ['Pine boards', 'Wall brackets', 'Screws', 'Paint'],
-    tools: ['Circular saw', 'Drill', 'Level', 'Paintbrush'],
-    skills: ['measuring-marking', 'basic-joinery', 'sanding-finishing'],
-    category: 'furniture',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 4, max: 6 },
-    lessonSlices: []
-  },
-  {
-    id: 'dining-chair',
-    title: 'Rustic Dining Chair',
-    description: 'A comfortable dining chair with traditional joinery',
-    difficulty: 'Advanced',
-    estimatedTime: '12-16 hours',
-    materials: ['Hardwood', 'Wood glue', 'Wedges', 'Finish'],
-    tools: ['Chisels', 'Mallet', 'Clamps', 'Hand planes'],
-    skills: ['advanced-joinery', 'chiseling', 'sanding-finishing'],
-    category: 'furniture',
-    image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=300&fit=crop',
-    materialCost: 'Medium',
-    timeRange: { min: 12, max: 16 },
-    lessonSlices: []
-  },
-
-  // Decorative Projects
-  {
-    id: 'wooden-sign',
-    title: 'Personalized Wooden Sign',
-    description: 'Create a custom sign with your favorite quote or family name',
-    difficulty: 'Beginner',
-    estimatedTime: '2-3 hours',
-    materials: ['Pine board', 'Stain', 'Paint', 'Hanging hardware'],
-    tools: ['Jigsaw', 'Sander', 'Paintbrushes', 'Drill'],
-    skills: ['measuring-marking', 'hand-sawing', 'sanding-finishing'],
-    category: 'decorative',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 2, max: 3 },
-    lessonSlices: []
-  },
-  {
-    id: 'wall-art',
-    title: 'Geometric Wall Art',
-    description: 'Modern geometric patterns made from different wood species',
-    difficulty: 'Intermediate',
-    estimatedTime: '6-8 hours',
-    materials: ['Various hardwoods', 'Wood glue', 'Backing board', 'Finish'],
-    tools: ['Table saw', 'Miter saw', 'Clamps', 'Sander'],
-    skills: ['power-tools-intro', 'basic-joinery', 'sanding-finishing'],
-    category: 'decorative',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Medium',
-    timeRange: { min: 6, max: 8 },
-    lessonSlices: []
-  },
-
-  // Outdoor Projects
-  {
-    id: 'garden-bench',
-    title: 'Garden Bench',
-    description: 'A sturdy bench perfect for your garden or patio',
-    difficulty: 'Intermediate',
-    estimatedTime: '10-14 hours',
-    materials: ['Cedar or pressure-treated lumber', 'Screws', 'Finish'],
-    tools: ['Circular saw', 'Drill', 'Clamps', 'Sander'],
-    skills: ['power-tools-intro', 'basic-joinery', 'sanding-finishing'],
-    category: 'outdoor',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop',
-    materialCost: 'Medium',
-    timeRange: { min: 10, max: 14 },
-    lessonSlices: []
-  },
-  {
-    id: 'planter-box',
-    title: 'Raised Planter Box',
-    description: 'A raised garden bed for growing vegetables and flowers',
-    difficulty: 'Beginner',
-    estimatedTime: '3-5 hours',
-    materials: ['Cedar boards', 'Screws', 'Landscape fabric', 'Soil'],
-    tools: ['Circular saw', 'Drill', 'Measuring tape', 'Level'],
-    skills: ['measuring-marking', 'basic-joinery'],
-    category: 'outdoor',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 3, max: 5 },
-    lessonSlices: []
-  },
-
-  // Storage Projects
-  {
-    id: 'jewelry-box',
-    title: 'Jewelry Box with Dividers',
-    description: 'A beautiful box with custom dividers for organizing jewelry',
-    difficulty: 'Intermediate',
-    estimatedTime: '6-8 hours',
-    materials: ['Hardwood', 'Felt lining', 'Hinges', 'Finish'],
-    tools: ['Table saw', 'Router', 'Chisels', 'Sander'],
-    skills: ['advanced-joinery', 'chiseling', 'sanding-finishing'],
-    category: 'storage',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Medium',
-    timeRange: { min: 6, max: 8 },
-    lessonSlices: []
-  },
-  {
-    id: 'shoe-rack',
-    title: 'Shoe Storage Rack',
-    description: 'Organize your shoes with this simple rack',
-    difficulty: 'Beginner',
-    estimatedTime: '2-4 hours',
-    materials: ['Pine boards', 'Screws', 'Paint or stain'],
-    tools: ['Circular saw', 'Drill', 'Sander', 'Paintbrush'],
-    skills: ['measuring-marking', 'basic-joinery', 'sanding-finishing'],
-    category: 'storage',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 2, max: 4 },
-    lessonSlices: []
-  },
-
-  // Toys & Games Projects
-  {
-    id: 'wooden-puzzle',
-    title: 'Wooden Puzzle',
-    description: 'A custom puzzle with interlocking pieces',
-    difficulty: 'Beginner',
-    estimatedTime: '3-4 hours',
-    materials: ['Plywood', 'Paint', 'Clear finish'],
-    tools: ['Scroll saw', 'Sander', 'Paintbrushes'],
-    skills: ['measuring-marking', 'hand-sawing', 'sanding-finishing'],
-    category: 'toys',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 3, max: 4 },
-    lessonSlices: []
-  },
-  {
-    id: 'chess-set',
-    title: 'Wooden Chess Set',
-    description: 'Handcrafted chess pieces and board',
-    difficulty: 'Advanced',
-    estimatedTime: '20-30 hours',
-    materials: ['Various hardwoods', 'Wood glue', 'Finish'],
-    tools: ['Lathe', 'Chisels', 'Sander', 'Drill'],
-    skills: ['advanced-joinery', 'chiseling', 'sanding-finishing'],
-    category: 'toys',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'High',
-    timeRange: { min: 20, max: 30 },
-    lessonSlices: []
-  },
-
-  // Kitchen Projects
-  {
-    id: 'cutting-board',
-    title: 'Simple Cutting Board',
-    description: 'A beautiful and functional cutting board perfect for beginners',
-    difficulty: 'Beginner',
-    estimatedTime: '2-3 hours',
-    materials: ['Hardwood (maple, walnut)', 'Food-safe oil', 'Sandpaper'],
-    tools: ['Hand saw', 'Chisel', 'Sandpaper', 'Clamps'],
-    skills: ['safety-basics', 'measuring-marking', 'hand-sawing', 'sanding-finishing'],
-    category: 'kitchen',
-    image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 2, max: 3 },
-    lessonSlices: []
-  },
-  {
-    id: 'spice-rack',
-    title: 'Wall-Mounted Spice Rack',
-    description: 'Organize your spices with this wall-mounted rack',
-    difficulty: 'Beginner',
-    estimatedTime: '3-4 hours',
-    materials: ['Pine boards', 'Screws', 'Paint or stain'],
-    tools: ['Circular saw', 'Drill', 'Sander', 'Paintbrush'],
-    skills: ['measuring-marking', 'basic-joinery', 'sanding-finishing'],
-    category: 'kitchen',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    materialCost: 'Low',
-    timeRange: { min: 3, max: 4 },
-    lessonSlices: []
-  },
-];
 
 export default function ProjectsScreen() {
   const colorScheme = useColorScheme();
@@ -327,7 +45,48 @@ export default function ProjectsScreen() {
   const [showCutListOptimizer, setShowCutListOptimizer] = useState(false);
   const [showToolLibrary, setShowToolLibrary] = useState(false);
   const [showOfflineManager, setShowOfflineManager] = useState(false);
-  const { completedSkills, createProjectPlan, sliceProjectIntoLessons } = useUserProgressStore();
+  const { 
+    completedSkills, 
+    createProjectPlan, 
+    sliceProjectIntoLessons,
+    projects,
+    categories,
+    isLoading,
+    fetchAllData
+  } = useUserProgressStore();
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  // Helper functions to get data from Firestore
+  const getProjectCategories = (): ProjectCategory[] => {
+    if (!categories || categories.length === 0) return [];
+    
+    return categories.map(category => {
+      const displayInfo = getCategoryDisplayInfo(category.id);
+      
+      // Use Firestore data if available, otherwise use mapping
+      const finalTitle = category.name || displayInfo.title;
+      const finalDescription = category.description || displayInfo.description;
+      const finalColor = category.color || displayInfo.color;
+      const finalIcon = category.icon || displayInfo.icon;
+      
+      return {
+        id: category.id,
+        title: finalTitle,
+        description: finalDescription,
+        icon: finalIcon,
+        projectCount: projects.filter(p => p.category === category.id).length,
+        difficulty: category.difficulty || 'Beginner',
+        color: finalColor,
+      };
+    });
+  };
+
+  const getProjects = (): Project[] => {
+    return projects || [];
+  };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -377,6 +136,11 @@ export default function ProjectsScreen() {
     );
   };
 
+  const handleOpenCutListOptimizer = (project: Project) => {
+    setSelectedProject(project);
+    setShowCutListOptimizer(true);
+  };
+
   const handleCategoryPress = (categoryId: string) => {
     router.push(`/category/${categoryId}`);
   };
@@ -404,7 +168,7 @@ export default function ProjectsScreen() {
           {category.description}
         </Text>
         <Text style={[styles.categoryCount, { color: Colors[colorScheme ?? 'light'].primary }]}>
-          {enhancedProjects.filter(p => p.category === category.id).length} projects
+          {category.projectCount} projects
         </Text>
       </View>
       <View style={styles.categoryArrow}>
@@ -440,9 +204,11 @@ export default function ProjectsScreen() {
               <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(project.difficulty) }]}>
                 <Text style={styles.difficultyBadgeText}>{project.difficulty}</Text>
               </View>
-              <View style={[styles.costBadge, { backgroundColor: getMaterialCostColor(project.materialCost) }]}>
-                <Text style={styles.costBadgeText}>{project.materialCost} Cost</Text>
-              </View>
+              {project.materialCost && (
+                <View style={[styles.costBadge, { backgroundColor: getMaterialCostColor(project.materialCost) }]}>
+                  <Text style={styles.costBadgeText}>{project.materialCost} Cost</Text>
+                </View>
+              )}
             </View>
             <Text style={[styles.projectDescription, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
               {project.description}
@@ -466,26 +232,55 @@ export default function ProjectsScreen() {
             </View>
           </View>
           
-          <TouchableOpacity
-            style={[
-              styles.startButton, 
-              { 
-                backgroundColor: canStart 
-                  ? Colors[colorScheme ?? 'light'].primary 
-                  : Colors[colorScheme ?? 'light'].tabIconDefault 
-              }
-            ]}
-            disabled={!canStart}
-            onPress={() => handleStartProject(project)}
-          >
-            <Text style={[styles.startButtonText, { color: 'white' }]}>
-              {canStart ? 'Start' : 'Locked'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.projectActions}>
+            {project.cutList && project.cutList.length > 0 && (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: Colors[colorScheme ?? 'light'].tabIconDefault }]}
+                onPress={() => handleOpenCutListOptimizer(project)}
+              >
+                <IconSymbol name="scissors" size={14} color="white" />
+                <Text style={[styles.actionButtonText, { color: 'white' }]}>
+                  Cut List
+                </Text>
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity
+              style={[
+                styles.startButton, 
+                { 
+                  backgroundColor: canStart 
+                    ? Colors[colorScheme ?? 'light'].primary 
+                    : Colors[colorScheme ?? 'light'].tabIconDefault 
+                }
+              ]}
+              disabled={!canStart}
+              onPress={() => handleStartProject(project)}
+            >
+              <Text style={[styles.startButtonText, { color: 'white' }]}>
+                {canStart ? 'Start' : 'Locked'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
   };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+        <Header
+          title="Projects" 
+          subtitle="Choose from hundreds of projects to build"
+          showSafeArea={false}
+        />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading projects...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
@@ -500,14 +295,14 @@ export default function ProjectsScreen() {
           <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
             Project Categories
           </Text>
-          {projectCategories.map(renderCategoryCard)}
+          {getProjectCategories().map(renderCategoryCard)}
         </View>
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
             Featured Projects
           </Text>
-          {enhancedProjects.slice(0, 6).map(renderProjectCard)}
+          {getProjects().slice(0, 6).map(renderProjectCard)}
         </View>
 
         <View style={styles.section}>
@@ -616,22 +411,7 @@ export default function ProjectsScreen() {
             <View style={{ width: 24 }} />
           </View>
           <CutListOptimizer
-            cutList={[
-              {
-                id: '1',
-                name: 'Table Top',
-                quantity: 1,
-                dimensions: { length: 48, width: 24, thickness: 0.75 },
-                material: 'Oak',
-              },
-              {
-                id: '2',
-                name: 'Table Legs',
-                quantity: 4,
-                dimensions: { length: 28, width: 2, thickness: 2 },
-                material: 'Oak',
-              },
-            ]}
+            cutList={selectedProject?.cutList || []}
             onOptimize={handleCutListOptimize}
           />
         </SafeAreaView>
@@ -806,6 +586,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  projectActions: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontFamily: FontFamilies.dinRounded,
+  },
   projectStats: {
     flexDirection: 'row',
     gap: 16,
@@ -907,5 +704,15 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 3,
     backgroundColor: '#58CC02',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#666',
+    fontFamily: FontFamilies.dinRounded,
   },
 });

@@ -1,3 +1,4 @@
+import { DeleteAccountModal } from '@/components/modals';
 import { Button } from '@/components/ui/Button';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
@@ -5,6 +6,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore, useUserProgressStore } from '@/stores';
 import { hapticSelection } from '@/utils/haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
   Alert,
@@ -70,6 +72,7 @@ export default function ProfileScreen() {
   } = useUserProgressStore();
 
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
 
@@ -84,7 +87,13 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await logout();
+              const success = await logout();
+              if (success) {
+                // Use setTimeout to ensure state updates complete before navigation
+                setTimeout(() => {
+                  router.replace('/welcome');
+                }, 100);
+              }
             } catch (error) {
               console.error('Logout error:', error);
             }
@@ -95,25 +104,7 @@ export default function ProfileScreen() {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This action cannot be undone. All your data will be permanently deleted.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { deleteAccount } = useAuthStore.getState();
-              await deleteAccount();
-            } catch (error) {
-              console.error('Delete account error:', error);
-            }
-          }
-        },
-      ]
-    );
+    setShowDeleteModal(true);
   };
 
   const renderAchievementCard = ({ item, index }: { item: any; index: number }) => {
@@ -209,7 +200,14 @@ export default function ProfileScreen() {
           <Text style={styles.headerSubtitle}>Your woodworking journey</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.settingsButton}>
+          <TouchableOpacity 
+            style={styles.settingsButton}
+            onPress={() => {
+              hapticSelection();
+              router.push('/settings');
+            }}
+            activeOpacity={0.7}
+          >
             <IconSymbol name="gearshape.fill" size={24} color="#000000" />
           </TouchableOpacity>
         </View>
@@ -401,6 +399,12 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      
+      {/* Delete Account Modal */}
+      <DeleteAccountModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -441,6 +445,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 20,
     backgroundColor: '#F8F9FA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   scrollView: {
     flex: 1,

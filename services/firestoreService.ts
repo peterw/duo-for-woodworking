@@ -229,6 +229,165 @@ export const deleteUser = async (uid: string): Promise<void> => {
   }
 };
 
+// New methods for fetching app data
+export const getSkills = async (): Promise<any[]> => {
+  try {
+    const snapshot = await firestore().collection('skills').orderBy('order').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching skills:', error);
+    return [];
+  }
+};
+
+export const getProjects = async (): Promise<any[]> => {
+  try {
+    const snapshot = await firestore().collection('projects').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    return [];
+  }
+};
+
+export const getCategories = async (): Promise<any[]> => {
+  try {
+    const snapshot = await firestore().collection('categories').orderBy('order').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    return [];
+  }
+};
+
+export const getMaterials = async (): Promise<any[]> => {
+  try {
+    const snapshot = await firestore().collection('materials').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching materials:', error);
+    return [];
+  }
+};
+
+export const getTools = async (): Promise<any[]> => {
+  try {
+    const snapshot = await firestore().collection('tools').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching tools:', error);
+    return [];
+  }
+};
+
+export const getAchievements = async (): Promise<any[]> => {
+  try {
+    const snapshot = await firestore().collection('achievements').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching achievements:', error);
+    return [];
+  }
+};
+
+export const getProjectsByCategory = async (categoryId: string): Promise<any[]> => {
+  try {
+    const snapshot = await firestore().collection('projects').where('category', '==', categoryId).get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching projects by category:', error);
+    return [];
+  }
+};
+
+export const getProjectById = async (projectId: string): Promise<any | null> => {
+  try {
+    const doc = await firestore().collection('projects').doc(projectId).get();
+    if (doc.exists()) {
+      return { id: doc.id, ...doc.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    return null;
+  }
+};
+
+export const getSkillById = async (skillId: string): Promise<any | null> => {
+  try {
+    const doc = await firestore().collection('skills').doc(skillId).get();
+    if (doc.exists()) {
+      return { id: doc.id, ...doc.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching skill:', error);
+    return null;
+  }
+};
+
+// Get lesson content for a specific skill
+export const getLessonContent = async (skillId: string): Promise<any | null> => {
+  try {
+    const doc = await firestore().collection('lessonContent').doc(skillId).get();
+    if (doc.exists()) {
+      return { id: doc.id, ...doc.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching lesson content:', error);
+    return null;
+  }
+};
+
+// Get all lesson content
+export const getAllLessonContent = async (): Promise<any[]> => {
+  try {
+    const snapshot = await firestore().collection('lessonContent').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching all lesson content:', error);
+    return [];
+  }
+};
+
+// Get user's current lesson progress
+export const getUserLessonProgress = async (userId: string, skillId: string): Promise<any | null> => {
+  try {
+    const doc = await firestore().collection('users').doc(userId).collection('lessonProgress').doc(skillId).get();
+    if (doc.exists()) {
+      return { id: doc.id, ...doc.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching user lesson progress:', error);
+    return null;
+  }
+};
+
+// Update user's lesson progress
+export const updateUserLessonProgress = async (userId: string, skillId: string, progress: any): Promise<void> => {
+  try {
+    await firestore().collection('users').doc(userId).collection('lessonProgress').doc(skillId).set(progress, { merge: true });
+  } catch (error) {
+    console.error('Error updating user lesson progress:', error);
+    throw error;
+  }
+};
+
+// Update project progress
+export const updateProjectProgress = async (projectId: string, lessonSlices: any[]): Promise<void> => {
+  try {
+    await firestore().collection('projects').doc(projectId).update({
+      lessonSlices: lessonSlices,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error updating project progress:', error);
+    throw error;
+  }
+};
+
 // Export all functions as a service object for backward compatibility
 export const firestoreService = {
   createUser,
@@ -239,4 +398,21 @@ export const firestoreService = {
   getUserByUsername,
   updateDailyLogin,
   deleteUser,
+  // New methods
+  getSkills,
+  getProjects,
+  getCategories,
+  getMaterials,
+  getTools,
+  getAchievements,
+  getProjectsByCategory,
+  getProjectById,
+  getSkillById,
+  // Lesson content methods
+  getLessonContent,
+  getAllLessonContent,
+  getUserLessonProgress,
+  updateUserLessonProgress,
+  // Project methods
+  updateProjectProgress,
 };

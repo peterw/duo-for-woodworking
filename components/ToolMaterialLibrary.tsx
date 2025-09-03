@@ -2,6 +2,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { getMaterials, getTools } from '@/services/firestoreService';
 import { toolMaterialService } from '@/services/toolMaterialService';
 import { BlurView } from 'expo-blur';
 import React, { useEffect, useState } from 'react';
@@ -206,14 +207,29 @@ export default function ToolMaterialLibrary({ onSelectTool, onSelectMaterial }: 
   const [ownedItems, setOwnedItems] = useState<Set<string>>(new Set());
   const [wishlistItems, setWishlistItems] = useState<Set<string>>(new Set());
   const [showOwnedOnly, setShowOwnedOnly] = useState(false);
+  const [tools, setTools] = useState<Tool[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showWishlistOnly, setShowWishlistOnly] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  // Load saved preferences from storage
+    // Load data from Firestore and saved preferences
   useEffect(() => {
-    const loadPreferences = async () => {
+    const loadData = async () => {
       try {
+        setIsLoading(true);
+        
+        // Fetch tools and materials from Firestore
+        const [firestoreTools, firestoreMaterials] = await Promise.all([
+          getTools(),
+          getMaterials()
+        ]);
+        
+        setTools(firestoreTools || []);
+        setMaterials(firestoreMaterials || []);
+        
+        // Load saved preferences from storage
         const ownedTools = await toolMaterialService.getOwnedTools();
         const wishlistedTools = await toolMaterialService.getWishlistedTools();
         const ownedMaterials = await toolMaterialService.getOwnedMaterials();
@@ -222,11 +238,16 @@ export default function ToolMaterialLibrary({ onSelectTool, onSelectMaterial }: 
         setOwnedItems(new Set([...ownedTools, ...ownedMaterials]));
         setWishlistItems(new Set([...wishlistedTools, ...wishlistedMaterials]));
       } catch (error) {
-        console.error('Error loading preferences:', error);
+        console.error('Error loading data:', error);
+        // Fallback to static data if Firestore fails
+        setTools(toolsDatabase);
+        setMaterials(materialsDatabase);
+      } finally {
+        setIsLoading(false);
       }
     };
-    
-    loadPreferences();
+
+    loadData();
   }, []);
 
   const toggleOwned = async (itemId: string) => {
@@ -309,16 +330,16 @@ export default function ToolMaterialLibrary({ onSelectTool, onSelectMaterial }: 
     return sortItems(filtered);
   };
 
-  const tools = filterAndSortItems(toolsDatabase);
-  const materials = filterAndSortItems(materialsDatabase);
+  const filteredTools = filterAndSortItems(tools);
+  const filteredMaterials = filterAndSortItems(materials);
 
   const getToolCategories = () => {
-    const categories = ['all', ...new Set(toolsDatabase.map(tool => tool.category))];
+    const categories = ['all', ...new Set(tools.map(tool => tool.category))];
     return categories;
   };
 
   const getMaterialCategories = () => {
-    const categories = ['all', ...new Set(materialsDatabase.map(material => material.category))];
+    const categories = ['all', ...new Set(materials.map(material => material.category))];
     return categories;
   };
 
@@ -933,6 +954,18 @@ export default function ToolMaterialLibrary({ onSelectTool, onSelectMaterial }: 
     </Modal>
   );
 
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.loadingText, { color: Colors[colorScheme ?? 'light'].text }]}>
+            Loading tools and materials...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -1026,7 +1059,7 @@ export default function ToolMaterialLibrary({ onSelectTool, onSelectMaterial }: 
       >
         {activeTab === 'tools' ? (
           <View style={styles.listContainer}>
-            {tools.map((item) => (
+            {filteredTools.map((item) => (
               <View key={item.id}>
                 {renderToolItem({ item })}
               </View>
@@ -1034,7 +1067,7 @@ export default function ToolMaterialLibrary({ onSelectTool, onSelectMaterial }: 
           </View>
         ) : (
           <View style={styles.listContainer}>
-            {materials.map((item) => (
+            {filteredMaterials.map((item) => (
               <View key={item.id}>
                 {renderMaterialItem({ item })}
               </View>
@@ -1056,6 +1089,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666',
   },
   header: {
     marginBottom: 24,

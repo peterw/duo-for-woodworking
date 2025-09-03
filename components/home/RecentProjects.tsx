@@ -2,12 +2,12 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
 import React from 'react';
 import {
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -17,6 +17,7 @@ interface Project {
   title: string;
   difficulty: string;
   isStarted: boolean;
+  isCompleted?: boolean;
   progress: number;
 }
 
@@ -54,35 +55,50 @@ export default function RecentProjects({
             style={styles.projectCard}
           >
             <View style={styles.projectCardContent}>
+              <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+
               <View style={[styles.projectIcon, { backgroundColor: getSkillColor(index) }]}>
                 <IconSymbol name="hammer.fill" size={24} color="white" />
               </View>
+              {project.isCompleted && (
+                <View style={styles.completedBadge}>
+                  <IconSymbol name="checkmark.circle.fill" size={16} color="#58CC02" />
+                  <Text style={styles.completedText}>Completed</Text>
+                </View>
+              )}
+
+
+              </View>
+          
               <Text style={styles.projectTitle} numberOfLines={2}>
                 {project.title}
               </Text>
               <Text style={styles.projectDifficulty}>
                 {project.difficulty}
               </Text>
-              {project.isStarted && (
                 <View style={styles.projectProgress}>
                   <View style={styles.projectProgressBar}>
                     <View 
                       style={[
                         styles.projectProgressFill,
-                        { width: `${project.progress}%` }
+                        { 
+                          width: `${project.progress}%`,
+                          backgroundColor: project.isCompleted ? '#58CC02' : '#1CB0F6'
+                        }
                       ]} 
                     />
                   </View>
                   <Text style={styles.projectProgressText}>{project.progress}%</Text>
                 </View>
-              )}
             </View>
             
             <TouchableOpacity
               style={styles.startProjectButton}
               onPress={() => onProjectPress(project)}
             >
-              <Text style={styles.startProjectButtonText}>Start Project</Text>
+              <Text style={styles.startProjectButtonText}>
+                {project.isCompleted ? 'View Project' : project.isStarted ? 'Continue' : 'Start Project'}
+              </Text>
               <IconSymbol name="arrow.right" size={16} color="white" />
             </TouchableOpacity>
           </View>
@@ -152,6 +168,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: FontFamilies.dinRounded,
     color: '#666666',
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FFF0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  completedText: {
+    fontSize: 12,
+    fontFamily: FontFamilies.featherBold,
+    color: '#58CC02',
   },
   projectProgress: {
     flexDirection: 'row',

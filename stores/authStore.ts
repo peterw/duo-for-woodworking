@@ -21,13 +21,13 @@ interface AuthState {
   signup: (userData: CreateUserData, password: string) => Promise<boolean>;
   appleSignIn: () => Promise<boolean | 'NEEDS_SIGNUP'>;
   appleSignUp: (userData: Partial<CreateUserData>) => Promise<boolean>;
-  logout: () => Promise<void>;
+  logout: () => Promise<boolean>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   checkAuthStatus: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
   updateProfile: (updates: Partial<User>) => Promise<boolean>;
-  deleteAccount: () => Promise<boolean>;
+  deleteAccount: (password?: string) => Promise<boolean>;
   recoverAccount: () => Promise<boolean>;
 }
 
@@ -613,6 +613,8 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: null,
           });
+          
+          return true;
         } catch (error: any) {
           console.error('Logout error:', error);
           
@@ -624,6 +626,7 @@ export const useAuthStore = create<AuthState>()(
           }
           
           set({ isLoading: false, error: errorMessage });
+          return false;
         }
       },
 
@@ -687,7 +690,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      deleteAccount: async () => {
+      deleteAccount: async (password?: string) => {
         const { user, firebaseUser } = get();
         if (!user || !firebaseUser) {
           set({ error: 'You must be logged in to delete your account.' });
@@ -695,6 +698,20 @@ export const useAuthStore = create<AuthState>()(
         }
         
         try {
+          // Check if re-authentication is needed
+          if (firebaseUser.providerData[0]?.providerId === 'password' && password) {
+            // Re-authenticate with password before deletion
+            const credential = auth.EmailAuthProvider.credential(
+              firebaseUser.email!,
+              password
+            );
+            await firebaseUser.reauthenticateWithCredential(credential);
+          } else if (firebaseUser.providerData[0]?.providerId === 'apple.com') {
+            // For Apple Sign-In, we need to handle re-authentication differently
+            // This will be handled by the UI layer
+            throw new Error('Apple re-authentication required');
+          }
+          
           // Delete from Firestore first
           await firestoreService.deleteUser(user.uid);
           
@@ -720,6 +737,8 @@ export const useAuthStore = create<AuthState>()(
             errorMessage = 'Permission denied. Please contact support.';
           } else if (error.message?.includes('requires-recent-login')) {
             errorMessage = 'For security, please log in again before deleting your account.';
+          } else if (error.message?.includes('Apple re-authentication required')) {
+            errorMessage = 'Apple re-authentication required';
           }
           
           set({ error: errorMessage });

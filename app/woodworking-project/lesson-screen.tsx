@@ -2,10 +2,10 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useUserProgressStore } from '@/stores';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   ScrollView,
   StatusBar,
@@ -26,16 +26,65 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const { width, height } = Dimensions.get('window');
 
+interface LessonStep {
+  id: string;
+  title: string;
+  content: string;
+  type: 'instruction' | 'video' | 'quiz' | 'practice';
+  duration?: number; // in minutes
+  materials?: string[];
+  tools?: string[];
+  safetyNotes?: string[];
+}
+
+interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correct: number;
+  explanation: string;
+}
+
+interface LessonContent {
+  id: string;
+  skillId: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  steps: LessonStep[];
+  quiz: QuizQuestion[];
+  estimatedDuration: number;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  prerequisites: string[];
+  materials: string[];
+  tools: string[];
+  safetyNotes: string[];
+  xpReward: number;
+}
+
 export default function LessonScreen() {
   const colorScheme = useColorScheme();
   const {top:topPadding, bottom:bottomPadding} = useSafeAreaInsets()
   const router = useRouter();
   const { lessonId, lessonTitle, lessonColor, lessonIcon, lessonType } = useLocalSearchParams();
-  const { completeSkill } = useUserProgressStore();
+  const { 
+    completeSkill, 
+    getLessonContent, 
+    updateLessonProgress,
+    lessonContent: allLessonContent,
+    completedSkills 
+  } = useUserProgressStore();
+  
   const [currentStep, setCurrentStep] = useState(0);
   const [showQuiz, setShowQuiz] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [currentQuizQuestion, setCurrentQuizQuestion] = useState(0);
+  const [lessonContent, setLessonContent] = useState<LessonContent | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userProgress, setUserProgress] = useState<any>(null);
+
+
 
   // Reanimated animation values for step transitions
   const stepSlideAnim = useSharedValue(0);
@@ -43,7 +92,136 @@ export default function LessonScreen() {
   const stepOpacityAnim = useSharedValue(1);
   const stepNumberScaleAnim = useSharedValue(1);
   const stepNumberRotationAnim = useSharedValue(0);
-  const progressAnim = useSharedValue(0); // New shared value for progress bar animation
+  const progressAnim = useSharedValue(0);
+
+  // Fetch lesson content from Firestore
+  useEffect(() => {
+    const fetchLessonContent = async () => {
+      if (lessonId) {
+        setIsLoading(true);
+        // Reset lesson state
+        setCurrentStep(0);
+        setShowQuiz(false);
+        setSelectedAnswer(null);
+        setIsCorrect(null);
+        setCurrentQuizQuestion(0);
+        
+        try {
+          // Special handling for START section
+          if (lessonId === 'start') {
+            console.log('🌟 Creating START section content');
+            const startContent: LessonContent = {
+              id: 'start',
+              skillId: 'start',
+              title: 'START',
+              subtitle: 'Begin your woodworking journey',
+              description: 'Welcome to your woodworking learning journey! Let\'s start with the basics.',
+              steps: [
+                {
+                  id: '1',
+                  title: 'Welcome to Woodworking',
+                  content: 'Welcome to your woodworking journey! In this section, you\'ll learn the fundamentals of woodworking and get ready to start building amazing projects.',
+                  type: 'instruction',
+                  duration: 5
+                },
+                {
+                  id: '2',
+                  title: 'Safety First',
+                  content: 'Safety is the most important aspect of woodworking. Always wear appropriate safety gear, work in a well-ventilated area, and keep your workspace clean and organized.',
+                  type: 'instruction',
+                  duration: 10,
+                  safetyNotes: ['Wear safety glasses', 'Use hearing protection', 'Keep workspace clean', 'Work in well-lit area']
+                },
+                {
+                  id: '3',
+                  title: 'Getting Started',
+                  content: 'You\'re now ready to begin your woodworking journey! Complete this section to unlock your first lessons and start building your skills.',
+                  type: 'instruction',
+                  duration: 5
+                }
+              ],
+              quiz: [], // No quiz for START section
+              estimatedDuration: 20,
+              difficulty: 'Beginner',
+              prerequisites: [],
+              materials: [],
+              tools: [],
+              safetyNotes: ['Always prioritize safety', 'Start with simple projects', 'Learn proper tool handling'],
+              xpReward: 0
+            };
+            
+            setLessonContent(startContent);
+            progressAnim.value = withTiming(0, { duration: 500 });
+          } else {
+            const content = await getLessonContent(lessonId as string);
+            
+            if (content) {
+              
+              setLessonContent(content);
+              // Initialize progress animation
+              progressAnim.value = withTiming(0, { duration: 500 });
+            } else {
+              console.log('⚠️ No content found, using fallback');
+              setLessonContent(createFallbackContent(lessonId as string));
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching lesson content:', error);
+          setLessonContent(createFallbackContent(lessonId as string));
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchLessonContent();
+  }, [lessonId, getLessonContent, allLessonContent]);
+
+  // Create fallback content for lessons not yet in Firestore
+  const createFallbackContent = (skillId: string): LessonContent => {
+    const lesson = allLessonContent.find(l => l.skillId === skillId);
+    const fallbackContent: LessonContent = {
+      id: skillId,
+      skillId: skillId,
+      title: lesson?.title || 'Woodworking Lesson',
+      subtitle: lesson?.subtitle || 'Learn essential woodworking techniques',
+      description: lesson?.description || 'Master the fundamentals of woodworking',
+      steps: [
+        {
+          id: '1',
+          title: 'Introduction',
+          content: 'Welcome to this woodworking lesson. Let\'s get started with the basics.',
+          type: 'instruction',
+          duration: 5
+        },
+        {
+          id: '2',
+          title: 'Safety First',
+          content: 'Always wear appropriate safety gear and work in a well-ventilated area.',
+          type: 'instruction',
+          duration: 10,
+          safetyNotes: ['Wear safety glasses', 'Use hearing protection', 'Keep workspace clean']
+        },
+        {
+          id: '3',
+          title: 'Practice Exercise',
+          content: 'Practice the technique demonstrated in this lesson.',
+          type: 'practice',
+          duration: 15
+        }
+      ],
+      quiz: [], // No quiz for fallback content
+      estimatedDuration: 30,
+      difficulty: 'Beginner',
+      prerequisites: [],
+      materials: ['Wood sample', 'Safety equipment'],
+      tools: ['Basic hand tools'],
+      safetyNotes: ['Always wear safety gear', 'Work in well-lit area'],
+      xpReward: lesson?.xpReward || 50
+    };
+    
+    return fallbackContent;
+  };
 
   // Animated styles for step transitions
   const stepContainerStyle = useAnimatedStyle(() => {
@@ -76,1058 +254,631 @@ export default function LessonScreen() {
     };
   });
 
-  // Lesson content data - Updated to match actual skill IDs from userProgressStore
-  const lessonContent = {
-    'safety-basics': {
-      title: 'Safety Fundamentals',
-      subtitle: 'Essential safety practices for woodworking',
-      steps: [
-        'PPE requirements and usage',
-        'Workspace safety setup',
-        'Tool safety basics',
-        'Emergency procedures',
-        'Dust management'
-      ],
-      questions: [
-        {
-          question: 'What is the most important aspect of woodworking?',
-          options: ['Speed', 'Safety', 'Cost', 'Tools'],
-          correct: 1
-        }
-      ]
-    },
-    'measuring-marking': {
-      title: 'Measuring & Marking',
-      subtitle: 'Precision measuring and layout techniques',
-      steps: [
-        'Tape measure reading',
-        'Square usage and checking',
-        'Marking tools and techniques',
-        'Layout planning',
-        'Cutting line accuracy'
-      ],
-      questions: [
-        {
-          question: 'What is the golden rule of measuring?',
-          options: ['Measure once', 'Measure twice, cut once', 'Guess and check', 'Use any tool'],
-          correct: 1
-        }
-      ]
-    },
-    'hand-sawing': {
-      title: 'Hand Sawing',
-      subtitle: 'Master basic hand saw techniques',
-      steps: [
-        'Saw selection and setup',
-        'Proper grip and stance',
-        'Cutting straight lines',
-        'Cross-cutting techniques',
-        'Rip-cutting techniques'
-      ],
-      questions: [
-        {
-          question: 'What should you do before making a cut?',
-          options: ['Start cutting immediately', 'Mark the cut line', 'Use any saw', 'Cut freehand'],
-          correct: 1
-        }
-      ]
-    },
-    'chiseling': {
-      title: 'Chiseling Basics',
-      subtitle: 'Learn chisel safety and techniques',
-      steps: [
-        'Chisel types and selection',
-        'Sharpening and maintenance',
-        'Safe chiseling techniques',
-        'Mortise cutting',
-        'Clean-up techniques'
-      ],
-      questions: [
-        {
-          question: 'What is the safest way to use a chisel?',
-          options: ['Push towards your body', 'Push away from your body', 'Use both hands', 'Use any grip'],
-          correct: 1
-        }
-      ]
-    },
-    'basic-joinery': {
-      title: 'Basic Joinery',
-      subtitle: 'Simple wood joining methods',
-      steps: [
-        'Butt joint basics',
-        'Lap joint techniques',
-        'Simple dado joints',
-        'Glue application',
-        'Clamping strategies'
-      ],
-      questions: [
-        {
-          question: 'What is the strongest type of joint?',
-          options: ['Butt joint', 'Dado joint', 'Dovetail joint', 'Lap joint'],
-          correct: 2
-        }
-      ]
-    },
-    'sanding-finishing': {
-      title: 'Sanding & Finishing',
-      subtitle: 'Professional finishing techniques',
-      steps: [
-        'Sandpaper grit selection',
-        'Proper sanding techniques',
-        'Surface preparation',
-        'Stain application',
-        'Clear coat finishing'
-      ],
-      questions: [
-        {
-          question: 'What grit sandpaper should you start with?',
-          options: ['Coarse (60-80)', 'Medium (120-150)', 'Fine (220-240)', 'Any grit'],
-          correct: 0
-        }
-      ]
-    },
-    // Keep legacy lesson IDs for backward compatibility
-    'start': {
-      title: 'Welcome to Woodworking!',
-      subtitle: 'Begin your journey into the world of woodworking',
-      steps: [
-        'Welcome to your woodworking journey!',
-        'Learn the basics of working with wood',
-        'Understand safety first approach',
-        'Get familiar with essential tools'
-      ],
-      questions: [
-        {
-          question: 'What is the most important aspect of woodworking?',
-          options: ['Speed', 'Safety', 'Cost', 'Tools'],
-          correct: 1
-        }
-      ]
-    },
-    'tool-safety': {
-      title: 'Tool Safety Fundamentals',
-      subtitle: 'Master essential safety practices for a secure workshop',
-      steps: [
-        'Always wear safety glasses',
-        'Keep tools sharp and clean',
-        'Use proper grip and stance',
-        'Never rush your work'
-      ],
-      questions: [
-        {
-          question: 'When should you wear safety glasses?',
-          options: ['Only when cutting', 'Always in the workshop', 'Never', 'Only with power tools'],
-          correct: 1
-        }
-      ]
-    },
-    'measuring': {
-      title: 'Precision Measuring',
-      subtitle: 'Learn accurate measurement techniques for perfect results',
-      steps: [
-        'Use the right measuring tool',
-        'Measure twice, cut once',
-        'Mark clearly with pencil',
-        'Check your measurements'
-      ],
-      questions: [
-        {
-          question: 'What is the golden rule of measuring?',
-          options: ['Measure once', 'Measure twice, cut once', 'Guess and check', 'Use any tool'],
-          correct: 1
-        }
-      ]
-    },
-    'sawing': {
-      title: 'Sawing Techniques',
-      subtitle: 'Master the art of precise cutting and sawing',
-      steps: [
-        'Choose the right saw for the job',
-        'Mark your cut line clearly',
-        'Use proper sawing motion',
-        'Support your workpiece properly'
-      ],
-      questions: [
-        {
-          question: 'What should you do before making a cut?',
-          options: ['Start cutting immediately', 'Mark the cut line', 'Use any saw', 'Cut freehand'],
-          correct: 1
-        }
-      ]
-    },
-    'chest-1': {
-      title: 'Reward Chest!',
-      subtitle: 'Congratulations on completing the first section!',
-      steps: [
-        'Congratulations on completing the first section!',
-        'You earned 25 XP points',
-        'Unlock new tools and techniques',
-        'Ready for the next challenge!'
-      ],
-      questions: []
-    },
-    'joinery': {
-      title: 'Basic Joinery',
-      subtitle: 'Explore fundamental woodworking joints and techniques',
-      steps: [
-        'Learn about different joint types',
-        'Practice making simple joints',
-        'Understand wood grain direction',
-        'Master the basics of gluing'
-      ],
-      questions: [
-        {
-          question: 'What is the strongest type of joint?',
-          options: ['Butt joint', 'Dado joint', 'Dovetail joint', 'Lap joint'],
-          correct: 2
-        }
-      ]
-    },
-    'character-1': {
-      title: 'Meet Owl Master',
-      subtitle: 'Your woodworking mentor for advanced techniques',
-      steps: [
-        'Welcome to advanced techniques!',
-        'Owl Master will guide you',
-        'Learn professional tips and tricks',
-        'Unlock the master craftsman path'
-      ],
-      questions: []
-    },
-    'finishing': {
-      title: 'Wood Finishing Techniques',
-      subtitle: 'Learn professional finishing methods for beautiful results',
-      steps: [
-        'Prepare the wood surface properly',
-        'Choose the right finish for your project',
-        'Apply stain evenly and consistently',
-        'Protect with clear coat or varnish'
-      ],
-      questions: [
-        {
-          question: 'What is the first step in wood finishing?',
-          options: ['Apply stain', 'Sand the surface', 'Apply varnish', 'Choose color'],
-          correct: 1
-        }
-      ]
-    },
-  };
-
-  const currentLesson = lessonContent[lessonId as keyof typeof lessonContent];
-  const totalSteps = currentLesson?.steps.length || 0;
-  const hasQuiz = currentLesson?.questions && currentLesson.questions.length > 0;
-
-  // Smooth animation function for step transitions
-  const animateStepTransition = (nextStep: number) => {
-    // Animate current step out - slower and smoother
-    stepSlideAnim.value = withTiming(1, { duration: 500 }); // Increased from 300ms
-    stepScaleAnim.value = withTiming(0.95, { duration: 500 }); // Increased from 300ms
-    stepOpacityAnim.value = withTiming(0.7, { duration: 500 }); // Increased from 300ms
-    
-    // Animate step number with gentler bounce and rotation
-    stepNumberScaleAnim.value = withSpring(1.15, { // Reduced from 1.2 for gentler effect
-      damping: 12, // Reduced damping for smoother movement
-      stiffness: 120, // Reduced stiffness for slower movement
-      mass: 1.2 // Increased mass for more natural feel
-    });
-    stepNumberRotationAnim.value = withSpring(360, { 
-      damping: 12, // Reduced damping for smoother movement
-      stiffness: 120, // Reduced stiffness for slower movement
-      mass: 1.2 // Increased mass for more natural feel
-    });
-
-    // After animation completes, update step and animate in
-    setTimeout(() => {
-      setCurrentStep(nextStep);
-      
-      // Reset animation values
-      stepSlideAnim.value = 0;
-      stepScaleAnim.value = 0.8;
-      stepOpacityAnim.value = 0;
-      
-      // Animate new step in - slower and smoother
-      stepSlideAnim.value = withTiming(0, { duration: 600 }); // Increased from 400ms
-      stepScaleAnim.value = withSpring(1, { 
-        damping: 18, // Increased damping for smoother movement
-        stiffness: 100, // Reduced stiffness for slower movement
-        mass: 1.5 // Increased mass for more natural feel
-      });
-      stepOpacityAnim.value = withTiming(1, { duration: 600 }); // Increased from 400ms
-      
-      // Animate step number back to normal - smoother
-      stepNumberScaleAnim.value = withSpring(1, { 
-        damping: 18, // Increased damping for smoother movement
-        stiffness: 100, // Reduced stiffness for slower movement
-        mass: 1.5 // Increased mass for more natural feel
-      });
-      stepNumberRotationAnim.value = withSpring(0, { 
-        damping: 18, // Increased damping for smoother movement
-        stiffness: 100, // Reduced stiffness for slower movement
-        mass: 1.5 // Increased mass for more natural feel
-      });
-
-      // Animate progress bar smoothly
-      const newProgress = ((nextStep + 1) / totalSteps) * 100;
-      progressAnim.value = withSpring(newProgress, {
-        damping: 20, // Increased damping for smoother, more controlled movement
-        stiffness: 80, // Reduced stiffness for gentler, more elegant movement
-        mass: 1.5, // Increased mass for more natural, weighty feel
-        overshootClamping: false, // Allow slight overshoot for natural bounce
-        restDisplacementThreshold: 0.1, // More precise stopping
-        restSpeedThreshold: 0.1 // More precise stopping
-      });
-    }, 500); // Increased delay to match new animation duration
-  };
-
-  // Initialize progress bar on component mount with beautiful animation
-  useEffect(() => {
-    const initialProgress = ((currentStep + 1) / totalSteps) * 100;
-    progressAnim.value = withSpring(initialProgress, {
-      damping: 18, // Smooth damping for initial load
-      stiffness: 90, // Gentle stiffness for elegant movement
-      mass: 1.3, // Natural mass for realistic feel
-      overshootClamping: false, // Allow natural overshoot
-      restDisplacementThreshold: 0.05, // Very precise stopping
-      restSpeedThreshold: 0.05 // Very precise stopping
-    });
-  }, []);
-
+  // Handle step navigation
   const handleNextStep = () => {
-    if (currentStep < totalSteps - 1) {
-      animateStepTransition(currentStep + 1);
-    } else if (hasQuiz && !showQuiz) {
-      setShowQuiz(true);
+    if (!lessonContent) return;
+    
+    if (currentStep < lessonContent.steps.length - 1) {
+      // Animate out current step
+      stepSlideAnim.value = withTiming(1, { duration: 300 });
+      stepScaleAnim.value = withTiming(0.8, { duration: 300 });
+      stepOpacityAnim.value = withTiming(0, { duration: 300 });
+      
+      setTimeout(() => {
+        setCurrentStep(currentStep + 1);
+        // Animate in new step
+        stepSlideAnim.value = withTiming(0, { duration: 300 });
+        stepScaleAnim.value = withSpring(1, { damping: 15, stiffness: 150 });
+        stepOpacityAnim.value = withTiming(1, { duration: 300 });
+        
+        // Update progress
+        const progress = ((currentStep + 1) / lessonContent.steps.length) * 100;
+        progressAnim.value = withTiming(progress, { duration: 500 });
+      }, 300);
+    } else {
+      // Lesson completed
+      handleLessonComplete();
     }
   };
 
-  const handleAnswerSelect = (answerIndex: number) => {
+  const handlePreviousStep = () => {
+    if (currentStep > 0 && lessonContent) {
+      setCurrentStep(currentStep - 1);
+      const progress = (currentStep / lessonContent.steps.length) * 100;
+      progressAnim.value = withTiming(progress, { duration: 500 });
+    }
+  };
+
+  const handleLessonComplete = async () => {
+    if (!lessonContent) return;
+    
+    try {
+      
+      // Mark skill as completed
+      await completeSkill(lessonContent.skillId);
+      
+      // Debug: Check if START was properly added to completed skills
+      if (lessonContent.skillId === 'start') {
+        // Force a refresh of the completed skills to ensure it's updated
+        setTimeout(() => {
+          const { completedSkills } = useUserProgressStore.getState();
+        }, 100);
+      }
+      
+      // Update lesson progress in Firestore (skip for START section as it's not in Firestore)
+      if (lessonContent.skillId !== 'start') {
+        await updateLessonProgress(lessonContent.skillId, {
+          completed: true,
+          completedAt: new Date().toISOString(),
+          stepsCompleted: lessonContent.steps.length,
+          quizScore: null, // Will be updated after quiz
+          totalTimeSpent: 0, // Could track actual time spent
+          lastAccessed: new Date().toISOString()
+        });
+      }
+      
+      
+      // Create buttons array based on quiz availability
+      const buttons = [];
+      
+      // Check if quiz exists and has questions
+      if (lessonContent.quiz && Array.isArray(lessonContent.quiz) && lessonContent.quiz.length > 0) {
+        buttons.push(
+          { 
+            text: 'Take Quiz', 
+            onPress: () => {
+              setShowQuiz(true);
+            }
+          },
+          { text: 'Continue Learning', onPress: () => router.back() }
+        );
+      } else {
+        buttons.push(
+          { text: 'Continue Learning', onPress: () => router.back() }
+        );
+      }
+      
+      Alert.alert(
+        'Lesson Completed! 🎉',
+        `Congratulations! You've earned ${lessonContent.xpReward} XP.`,
+        buttons
+      );
+    } catch (error) {
+      console.error('Error completing lesson:', error);
+      Alert.alert('Error', 'Failed to complete lesson. Please try again.');
+    }
+  };
+
+  const handleQuizAnswer = (answerIndex: number) => {
+    if (!lessonContent || !lessonContent.quiz || lessonContent.quiz.length === 0) {
+      return;
+    }
+    
+    const currentQuestion = lessonContent.quiz[currentQuizQuestion];
+    if (!currentQuestion) {
+      return;
+    }
+    
+    console.log('🎯 Answer selected:', {
+      answerIndex,
+      correctAnswer: currentQuestion.correct,
+      question: currentQuestion.question
+    });
+    
     setSelectedAnswer(answerIndex);
-    const correct = answerIndex === currentLesson?.questions[0]?.correct;
-    setIsCorrect(correct);
-  };
-
-  const handleCompleteLesson = () => {
-    if (lessonId) {
-      completeSkill(lessonId as string);
-      router.back();
+    const isAnswerCorrect = answerIndex === currentQuestion.correct;
+    setIsCorrect(isAnswerCorrect);
+    
+    if (isAnswerCorrect) {
+      Alert.alert(
+        'Correct! 🎯',
+        currentQuestion.explanation || 'Great job!',
+        [
+          { 
+            text: currentQuizQuestion < lessonContent.quiz.length - 1 ? 'Next Question' : 'Finish Quiz', 
+            onPress: () => {
+              if (currentQuizQuestion < lessonContent.quiz.length - 1) {
+                // Move to next question
+                setCurrentQuizQuestion(currentQuizQuestion + 1);
+                setSelectedAnswer(null);
+                setIsCorrect(null);
+              } else {
+                setShowQuiz(false);
+                setSelectedAnswer(null);
+                setIsCorrect(null);
+                setCurrentQuizQuestion(0);
+                router.back();
+              }
+            }
+          }
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Incorrect',
+        `The correct answer is: ${currentQuestion.options[currentQuestion.correct]}`,
+        [
+          { 
+            text: 'Try Again', 
+            onPress: () => {
+              setSelectedAnswer(null);
+              setIsCorrect(null);
+            }
+          }
+        ]
+      );
     }
   };
 
-  const handleGoBack = () => {
-    router.back();
-  };
 
-  if (!currentLesson) {
+
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar translucent backgroundColor={'transparent'} />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Lesson not found</Text>
-          <TouchableOpacity style={styles.errorBackButton} onPress={handleGoBack}>
-            <Text style={styles.errorBackButtonText}>Go Back</Text>
-          </TouchableOpacity>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading lesson...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  if (!lessonContent) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar translucent backgroundColor={'transparent'} />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Lesson not found</Text>
+                     <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+             <Text style={styles.navText}>Go Back</Text>
+           </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const currentStepData = lessonContent?.steps[currentStep];
+  const progress = lessonContent ? ((currentStep + 1) / lessonContent.steps.length) * 100 : 0;
+
   return (
-    // <SafeAreaView style={styles.container}>
-    <View style={styles.container}>
-
-
+    <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor={'transparent'} />
       
-      {/* Stunning Header with Premium Gradient */}
-      <LinearGradient
-        colors={[
-          lessonColor as string || '#667eea', 
-          `${lessonColor as string || '#667eea'}CC`,
-          `${lessonColor as string || '#667eea'}99`
-        ]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.headerGradient}
-      >
-        {/* Premium Header Navigation */}
-        <View style={[styles.header, {marginTop:topPadding+5}]}>
-          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-            <View style={styles.backButtonInner}>
-              <IconSymbol name="chevron.left" size={20} color="#2D3748" />
-            </View>
-          </TouchableOpacity>
-          
-                      <View style={styles.headerContent}>
-              <View style={styles.headerText}>
-                <Text style={styles.headerTitle}>{currentLesson.title}</Text>
-              </View>
-            </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <IconSymbol name="chevron.left" size={24} color="#000" />
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.lessonTitle}>{lessonContent.title}</Text>
+          <Text style={styles.lessonSubtitle}>{lessonContent.subtitle}</Text>
         </View>
+        <View style={styles.headerRight}>
+          <Text style={styles.stepCounter}>{currentStep + 1}/{lessonContent.steps.length}</Text>
+        </View>
+      </View>
 
-        {/* Enhanced Progress Section */}
-        <View style={styles.progressSection}>
-          
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <Animated.View 
-                style={[
-                  styles.progressFill, 
-                  progressBarStyle
-                ]} 
-              />
-            </View>
-            <View style={styles.progressStats}>
-              <Text style={styles.progressText}>
-                {currentStep + 1} / {totalSteps}
-              </Text>
-              <Text style={styles.progressPercentage}>
-                {Math.round(progressAnim.value)}%
-              </Text>
-            </View>
+      {/* Progress Bar */}
+      <View style={styles.progressContainer}>
+        <View style={styles.progressBar}>
+          <Animated.View style={[styles.progressFill, progressBarStyle]} />
+        </View>
+        <Text style={styles.progressText}>{Math.round(progress)}% Complete</Text>
+      </View>
+
+             {/* Main Content */}
+       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+         {currentStepData && (
+           <Animated.View style={[styles.stepContainer, stepContainerStyle]}>
+             {/* Step Number */}
+             <Animated.View style={[styles.stepNumber, stepNumberStyle]}>
+               <Text style={styles.stepNumberText}>{currentStep + 1}</Text>
+             </Animated.View>
+
+             {/* Step Content */}
+             <View style={styles.stepContent}>
+               <Text style={styles.stepTitle}>{currentStepData.title}</Text>
+               <Text style={styles.stepDescription}>{currentStepData.content}</Text>
+            
+            {/* Step-specific content */}
+            {currentStepData.materials && currentStepData.materials.length > 0 && (
+              <View style={styles.materialsSection}>
+                <Text style={styles.sectionTitle}>Materials Needed:</Text>
+                {currentStepData.materials.map((material, index) => (
+                  <Text key={index} style={styles.materialItem}>• {material}</Text>
+                ))}
+              </View>
+            )}
+            
+            {currentStepData.tools && currentStepData.tools.length > 0 && (
+              <View style={styles.toolsSection}>
+                <Text style={styles.sectionTitle}>Tools Required:</Text>
+                {currentStepData.tools.map((tool, index) => (
+                  <Text key={index} style={styles.toolItem}>• {tool}</Text>
+                ))}
+              </View>
+            )}
+            
+            {currentStepData.safetyNotes && currentStepData.safetyNotes.length > 0 && (
+              <View style={styles.safetySection}>
+                <Text style={styles.safetyTitle}>⚠️ Safety Notes:</Text>
+                {currentStepData.safetyNotes.map((note, index) => (
+                  <Text key={index} style={styles.safetyItem}>• {note}</Text>
+                ))}
+              </View>
+            )}
           </View>
-        </View>
-      </LinearGradient>
+        </Animated.View>
+        )}
+      </ScrollView>
 
-      {/* Main Content with Premium Design */}
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
-        {!showQuiz ? (
-          // Premium Lesson Steps
-          <Animated.View style={[styles.stepContainer, stepContainerStyle]}>
-            <View style={styles.stepHeader}>
-              <Animated.View style={[styles.stepNumberContainer, stepNumberStyle]}>
-                <Text style={styles.stepNumberText}>{currentStep + 1}</Text>
-              </Animated.View>
-              <Text style={styles.stepLabel}>STEP {currentStep + 1}</Text>
-            </View>
-            
-            <View style={styles.stepContent}>
-              <Text style={styles.stepText}>
-                {currentLesson.steps[currentStep]}
-              </Text>
-            </View>
+      {/* Navigation */}
+      <View style={styles.navigation}>
+        <TouchableOpacity 
+          style={[styles.navButton, currentStep === 0 && styles.navButtonDisabled]} 
+          onPress={handlePreviousStep}
+          disabled={currentStep === 0}
+        >
+          <IconSymbol name="chevron.left" size={20} color={currentStep === 0 ? "#999" : "#000"} />
+          <Text style={[styles.navText, currentStep === 0 && styles.navTextDisabled]}>Previous</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.nextButton} 
+          onPress={handleNextStep}
+        >
+          <Text style={styles.nextButtonText}>
+            {currentStep === lessonContent.steps.length - 1 ? 'Complete Lesson' : 'Next Step'}
+          </Text>
+          <IconSymbol name="chevron.right" size={20} color="white" />
+        </TouchableOpacity>
+      </View>
 
-            {/* Enhanced Step Navigation Dots */}
-            <View style={styles.stepDotsContainer}>
-              {currentLesson.steps.map((_, index) => (
-                <View 
-                  key={index} 
-                  style={[
-                    styles.stepDot,
-                    index === currentStep && styles.stepDotActive
-                  ]} 
-                />
-              ))}
-            </View>
-          </Animated.View>
-        ) : (
-          // Premium Quiz Design
-          <View style={styles.quizContainer}>
-            <View style={styles.quizHeader}>
-              <View style={styles.quizIconContainer}>
-                <IconSymbol name="questionmark.circle.fill" size={32} color={lessonColor as string || '#667eea'} />
-              </View>
-              <Text style={styles.quizTitle}>Quick Quiz</Text>
-              <Text style={styles.quizSubtitle}>Test what you&apos;ve learned</Text>
-            </View>
-            
-            <View style={styles.quizQuestionContainer}>
-              <Text style={styles.quizQuestion}>
-                {currentLesson.questions?.[0]?.question}
-              </Text>
-            </View>
+
+
+      {/* Quiz Modal */}
+      {showQuiz && lessonContent && lessonContent.quiz && Array.isArray(lessonContent.quiz) && lessonContent.quiz.length > 0 && (
+        <View style={styles.quizModal}>
+          <View style={styles.quizContent}>
+            <Text style={styles.quizTitle}>
+              Lesson Quiz ({currentQuizQuestion + 1}/{lessonContent.quiz.length})
+            </Text>
+            <Text style={styles.quizQuestion}>
+              {lessonContent.quiz[currentQuizQuestion]?.question || 'Question not available'}
+            </Text>
             
             <View style={styles.quizOptions}>
-              {currentLesson.questions?.[0]?.options.map((option, index) => (
+              {lessonContent.quiz[currentQuizQuestion]?.options?.map((option, index) => (
                 <TouchableOpacity
                   key={index}
                   style={[
                     styles.quizOption,
-                    selectedAnswer === index && {
-                      backgroundColor: isCorrect === null ? '#EBF8FF' : 
-                        isCorrect ? '#F0FFF4' : '#FFF5F5',
-                      borderColor: isCorrect === null ? '#3182CE' : 
-                        isCorrect ? '#38A169' : '#E53E3E',
-                    }
+                    selectedAnswer === index && styles.quizOptionSelected,
+                    selectedAnswer !== null && index === lessonContent.quiz[currentQuizQuestion].correct && styles.quizOptionCorrect,
+                    selectedAnswer !== null && selectedAnswer === index && !isCorrect && styles.quizOptionIncorrect
                   ]}
-                  onPress={() => handleAnswerSelect(index)}
+                  onPress={() => handleQuizAnswer(index)}
                   disabled={selectedAnswer !== null}
                 >
-                  <View style={styles.quizOptionContent}>
-                    <View style={styles.quizOptionLetter}>
-                      <Text style={styles.quizOptionLetterText}>
-                        {String.fromCharCode(65 + index)}
-                      </Text>
-                    </View>
-                    <Text style={[
-                      styles.quizOptionText,
-                      selectedAnswer === index && {
-                        color: isCorrect === null ? '#3182CE' : 
-                          isCorrect ? '#38A169' : '#E53E3E',
-                      }
-                    ]}>
-                      {option}
-                    </Text>
-                  </View>
-                  
-                  {selectedAnswer === index && (
-                    <View style={styles.quizOptionIcon}>
-                      <IconSymbol 
-                        name={isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill"} 
-                        size={24} 
-                        color={isCorrect ? "#38A169" : "#E53E3E"} 
-                      />
-                    </View>
-                  )}
+                  <Text style={[
+                    styles.quizOptionText,
+                    selectedAnswer === index && styles.quizOptionTextSelected
+                  ]}>
+                    {option}
+                  </Text>
                 </TouchableOpacity>
-              ))}
+              )) || []}
             </View>
-
-            {isCorrect !== null && (
-              <View style={styles.quizFeedback}>
-                <View style={[
-                  styles.feedbackIcon,
-                  { backgroundColor: isCorrect ? '#F0FFF4' : '#FFF5F5' }
-                ]}>
-                  <IconSymbol 
-                    name={isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill"} 
-                    size={24} 
-                    color={isCorrect ? "#38A169" : "#E53E3E"} 
-                  />
-                </View>
-                <Text style={[
-                  styles.feedbackText,
-                  { color: isCorrect ? '#38A169' : '#E53E3E' }
-                ]}>
-                  {isCorrect ? 'Excellent! You got it right!' : 'Not quite right. Keep learning!'}
-                </Text>
-              </View>
-            )}
+            
+            {/* Close button for quiz */}
+            <TouchableOpacity 
+              style={styles.quizCloseButton}
+              onPress={() => {
+                setShowQuiz(false);
+                setSelectedAnswer(null);
+                setIsCorrect(null);
+                setCurrentQuizQuestion(0);
+              }}
+            >
+              <Text style={styles.quizCloseButtonText}>Close Quiz</Text>
+            </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
-
-      {/* Premium Action Button */}
-      <View style={[styles.actionContainer, {paddingBottom:bottomPadding+5}]}>
-        {!showQuiz ? (
-          <TouchableOpacity
-            style={styles.nextButton}
-            onPress={handleNextStep}
-          >
-            <LinearGradient
-              colors={[lessonColor as string || '#667eea', `${lessonColor as string || '#667eea'}DD`]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.nextButtonGradient}
-            >
-              <Text style={styles.nextButtonText}>
-                {currentStep < totalSteps - 1 ? 'Continue to Next Step' : 'Take Quiz'}
-              </Text>
-              <IconSymbol name="arrow.right" size={20} color="white" />
-            </LinearGradient>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[
-              styles.completeButton,
-              selectedAnswer === null && styles.completeButtonDisabled
-            ]}
-            onPress={handleCompleteLesson}
-            disabled={selectedAnswer === null}
-          >
-            <LinearGradient
-              colors={selectedAnswer === null ? ['#A0AEC0', '#718096'] : ['#48BB78', '#38A169']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[
-                styles.completeButtonGradient,
-                selectedAnswer === null && styles.completeButtonGradientDisabled
-              ]}
-            >
-              <IconSymbol name="checkmark.circle.fill" size={20} color="white" />
-              <Text style={[
-                styles.completeButtonText,
-                selectedAnswer === null && styles.completeButtonTextDisabled
-              ]}>
-                {selectedAnswer === null ? 'Select an answer to continue' : 'Complete Lesson'}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-      </View>
-      </View>
+        </View>
+      )}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7FAFC',
+    backgroundColor: '#FFFFFF',
   },
-  
-  // Stunning Header Styles
-  headerGradient: {
-    paddingTop: 12, // Reduced from 20 to 12
-    paddingBottom: 24, // Reduced from 40 to 24
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    marginBottom: 12, // Reduced from 20 to 12
-  },
-  backButton: {
-    marginRight: 16, // Reduced from 20 to 16
-  },
-  backButtonInner: {
-    width: 36, // Reduced from 44 to 36
-    height: 36, // Reduced from 44 to 36
-    borderRadius: 18, // Reduced from 22 to 18
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  headerContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIconContainer: {
-    marginRight: 16, // Reduced from 20 to 16
-  },
-  headerIcon: {
-    width: 48, // Reduced from 64 to 48
-    height: 48, // Reduced from 64 to 48
-    borderRadius: 24, // Reduced from 32 to 24
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  headerText: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 24, // Reduced from 28 to 24
-    fontWeight: '800',
-    color: 'white',
-    fontFamily: FontFamilies.dinRounded,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  headerSubtitle: {
-    fontSize: 16, // Reduced from 18 to 16
-    color: 'rgba(255,255,255,0.95)',
-    fontFamily: FontFamilies.dinRounded,
-    lineHeight: 20, // Reduced from 24 to 20
-    fontWeight: '500',
-  },
-  
-  // Enhanced Progress Section
-  progressSection: {
-    paddingHorizontal: 24,
-    marginTop:10
-  },
-  progressHeader: {
-    // marginBottom: 10, // Reduced from 24 to 16
-  },
-  progressTitle: {
-    fontSize: 18, // Reduced from 20 to 18
-    fontWeight: '700',
-    color: 'white',
-    fontFamily: FontFamilies.dinRounded,
-    marginBottom: 4, // Reduced from 6 to 4
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  progressSubtitle: {
-    fontSize: 14, // Reduced from 16 to 14
-    color: 'rgba(255,255,255,0.9)',
-    fontFamily: FontFamilies.dinRounded,
-    fontWeight: '500',
-  },
-  progressContainer: {
-    alignItems: 'center',
-  },
-  progressBar: {
-    width: '100%',
-    height: 8, // Reduced from 10 to 8
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 4, // Reduced from 5 to 4
-    overflow: 'hidden',
-    marginBottom: 12, // Reduced from 16 to 12
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4, // Reduced from 5 to 4
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  progressStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16, // Reduced from 20 to 16
-  },
-  progressText: {
-    fontSize: 16, // Reduced from 18 to 16
-    color: 'white',
-    fontWeight: '700',
-    fontFamily: FontFamilies.dinRounded,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  progressPercentage: {
-    fontSize: 14, // Reduced from 16 to 14
-    color: 'rgba(255,255,255,0.9)',
-    fontFamily: FontFamilies.dinRounded,
-    fontWeight: '600',
-  },
-  
-  // Content
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: 24,
-    paddingBottom: 120,
-  },
-  
-  // Premium Step Container
-  stepContainer: {
-    backgroundColor: 'white',
-    borderRadius: 24,
-    padding: 36,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 8,
-    minHeight: 320,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.8)',
-  },
-  stepHeader: {
-    alignItems: 'center',
-    marginBottom: 36,
-  },
-  stepNumberContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#EBF8FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: '#3182CE',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 6,
-    borderWidth: 3,
-    borderColor: 'rgba(49, 130, 206, 0.1)',
-  },
-  stepNumberText: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#3182CE',
-    fontFamily: FontFamilies.dinRounded,
-  },
-  stepLabel: {
-    fontSize: 16,
-    color: '#4A5568',
-    fontWeight: '700',
-    fontFamily: FontFamilies.dinRounded,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-  },
-  stepContent: {
-    alignItems: 'center',
-    marginBottom: 36,
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-  },
-  stepText: {
-    fontSize: 24,
-    lineHeight: 32,
-    color: '#2D3748',
-    textAlign: 'center',
-    fontFamily: FontFamilies.dinRounded,
-    fontWeight: '600',
-  },
-  stepDotsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  stepDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  stepDotActive: {
-    backgroundColor: '#667eea',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    shadowColor: '#667eea',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  
-  // Premium Quiz Container
-  quizContainer: {
-    backgroundColor: 'white',
-    borderRadius: 24,
-    padding: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.8)',
-  },
-  quizHeader: {
     alignItems: 'center',
-    marginBottom: 28,
   },
-  quizIconContainer: {
-    marginBottom: 20,
-  },
-  quizTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#2D3748',
-    textAlign: 'center',
-    marginBottom: 10,
-    fontFamily: FontFamilies.dinRounded,
-  },
-  quizSubtitle: {
+  loadingText: {
     fontSize: 18,
-    color: '#4A5568',
-    textAlign: 'center',
-    fontFamily: FontFamilies.dinRounded,
-    fontWeight: '500',
-  },
-  quizQuestionContainer: {
-    backgroundColor: '#F7FAFC',
-    padding: 24,
-    borderRadius: 20,
-    marginBottom: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.8)',
-  },
-  quizQuestion: {
-    fontSize: 20,
-    lineHeight: 28,
-    color: '#2D3748',
-    textAlign: 'center',
-    fontFamily: FontFamilies.dinRounded,
-    fontWeight: '700',
-  },
-  quizOptions: {
-    gap: 16,
-    marginBottom: 28,
-  },
-  quizOption: {
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 20,
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  quizOptionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-  },
-  quizOptionLetter: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F7FAFC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  quizOptionLetterText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#4A5568',
+    color: '#666',
     fontFamily: FontFamilies.dinRounded,
   },
-  quizOptionText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2D3748',
-    flex: 1,
-    fontFamily: FontFamilies.dinRounded,
-  },
-  quizOptionIcon: {
-    position: 'absolute',
-    right: 20,
-    top: 20,
-  },
-  quizFeedback: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    borderRadius: 20,
-    backgroundColor: 'white',
-    gap: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.8)',
-  },
-  feedbackIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  feedbackText: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: FontFamilies.dinRounded,
-  },
-  
-  // Premium Action Container
-  actionContainer: {
-    padding: 24,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(226, 232, 240, 0.8)',
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  nextButton: {
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-    overflow: 'hidden',
-  },
-  nextButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 28,
-    gap: 10,
-  },
-  nextButtonText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '700',
-    fontFamily: FontFamilies.dinRounded,
-  },
-  completeButton: {
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-    overflow: 'hidden',
-  },
-  completeButtonDisabled: {
-    opacity: 0.7,
-  },
-  completeButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 28,
-    gap: 10,
-  },
-  completeButtonGradientDisabled: {
-    opacity: 0.7,
-  },
-  completeButtonText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '700',
-    fontFamily: FontFamilies.dinRounded,
-  },
-  completeButtonTextDisabled: {
-    color: 'rgba(255,255,255,0.7)',
-  },
-  
-  // Error Container
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
   },
   errorText: {
-    fontSize: 20,
-    color: '#4A5568',
-    marginBottom: 24,
+    fontSize: 18,
+    color: '#666',
     fontFamily: FontFamilies.dinRounded,
-    fontWeight: '600',
   },
-  errorBackButton: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerContent: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  lessonTitle: {
+    fontSize: 20,
+    fontFamily: FontFamilies.featherBold,
+    color: '#000000',
+    marginBottom: 4,
+  },
+  lessonSubtitle: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+  },
+  stepCounter: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+  },
+  progressContainer: {
+    paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingHorizontal: 28,
-    backgroundColor: '#667eea',
-    borderRadius: 16,
+  },
+  progressBar: {
+    width: '100%',
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E5E5E5',
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: '#58CC02',
+  },
+  progressText: {
+    fontSize: 12,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 20,
+  },
+  stepContainer: {
+    alignItems: 'center',
+  },
+  stepNumber: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#58CC02',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
-  errorBackButtonText: {
-    fontSize: 18,
+  stepNumberText: {
+    fontSize: 24,
+    fontFamily: FontFamilies.featherBold,
     color: 'white',
-    fontWeight: '700',
+  },
+  stepContent: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  stepTitle: {
+    fontSize: 24,
+    fontFamily: FontFamilies.featherBold,
+    color: '#000000',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  stepDescription: {
+    fontSize: 16,
     fontFamily: FontFamilies.dinRounded,
+    color: '#333333',
+    lineHeight: 24,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  materialsSection: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  toolsSection: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  safetySection: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: FontFamilies.featherBold,
+    color: '#000000',
+    marginBottom: 8,
+  },
+  materialItem: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    marginBottom: 4,
+    paddingLeft: 16,
+  },
+  toolItem: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    marginBottom: 4,
+    paddingLeft: 16,
+  },
+  safetyTitle: {
+    fontSize: 16,
+    fontFamily: FontFamilies.featherBold,
+    color: '#FF6B35',
+    marginBottom: 8,
+  },
+  safetyItem: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#FF6B35',
+    marginBottom: 4,
+    paddingLeft: 16,
+  },
+  navigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+  },
+  navButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+  },
+  navButtonDisabled: {
+    opacity: 0.5,
+  },
+  navText: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#000000',
+    marginLeft: 4,
+  },
+  navTextDisabled: {
+    color: '#999999',
+  },
+  nextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#58CC02',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  nextButtonText: {
+    fontSize: 16,
+    fontFamily: FontFamilies.featherBold,
+    color: 'white',
+    marginRight: 8,
+  },
+  quizModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quizContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    margin: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  quizTitle: {
+    fontSize: 20,
+    fontFamily: FontFamilies.featherBold,
+    color: '#000000',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  quizQuestion: {
+    fontSize: 16,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#333333',
+    lineHeight: 24,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  quizOptions: {
+    gap: 12,
+  },
+  quizOption: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    backgroundColor: 'white',
+  },
+  quizOptionSelected: {
+    borderColor: '#58CC02',
+    backgroundColor: '#F0F9F0',
+  },
+  quizOptionCorrect: {
+    borderColor: '#58CC02',
+    backgroundColor: '#F0F9F0',
+  },
+  quizOptionIncorrect: {
+    borderColor: '#FF6B35',
+    backgroundColor: '#FFF0F0',
+  },
+  quizOptionText: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#333333',
+    textAlign: 'center',
+  },
+  quizOptionTextSelected: {
+    color: '#58CC02',
+    fontFamily: FontFamilies.featherBold,
+  },
+  quizCloseButton: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: '#E5E5E5',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  quizCloseButtonText: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
   },
 });

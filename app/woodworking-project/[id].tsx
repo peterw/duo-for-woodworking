@@ -1,9 +1,11 @@
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
+import { getProjectById } from '@/services/firestoreService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   Image,
@@ -35,6 +37,7 @@ interface ProjectDetail {
     max: number;
   };
   lessonSlices: any[];
+  steps?: string[];
 }
 
 export default function ProjectDetailScreen() {
@@ -42,143 +45,99 @@ export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [selectedTab, setSelectedTab] = useState<'overview' | 'materials' | 'tools' | 'steps'>('overview');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock project data - in real app this would come from API or store
-  const getProjectData = (projectId: string): ProjectDetail => {
-    const projects: { [key: string]: ProjectDetail } = {
-      'wooden-sign': {
-        id: 'wooden-sign',
-        title: 'Personalized Wooden Sign',
-        description: 'Create a custom sign with your favorite quote or family name. This project teaches fundamental woodworking skills while creating a beautiful, personalized piece for your home.',
-        difficulty: 'Beginner',
-        estimatedTime: '2-3 hours',
-        materials: [
-          'Pine board (1" x 8" x 24")',
-          'Wood stain (your choice of color)',
-          'Acrylic paint for lettering',
-          'Clear polyurethane finish',
-          'Hanging hardware (screws and wire)',
-          'Sandpaper (120, 220, 400 grit)'
-        ],
-        tools: [
-          'Jigsaw or scroll saw',
-          'Random orbital sander',
-          'Paintbrushes (various sizes)',
-          'Drill with drill bits',
-          'Measuring tape and square',
-          'Clamps'
-        ],
-        skills: ['measuring-marking', 'hand-sawing', 'sanding-finishing'],
-        category: 'decorative',
-        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-        materialCost: 'Low',
-        timeRange: { min: 2, max: 3 },
-        lessonSlices: []
-      },
-      'wall-art': {
-        id: 'wall-art',
-        title: 'Geometric Wall Art',
-        description: 'Modern geometric patterns made from different wood species. This intermediate project will challenge your precision cutting and assembly skills while creating stunning wall decor.',
-        difficulty: 'Intermediate',
-        estimatedTime: '6-8 hours',
-        materials: [
-          'Various hardwoods (maple, walnut, cherry)',
-          'Wood glue',
-          'Backing board (1/4" plywood)',
-          'Clear finish (polyurethane or oil)',
-          'Hanging hardware',
-          'Sandpaper (120, 220, 400 grit)'
-        ],
-        tools: [
-          'Table saw',
-          'Miter saw',
-          'Clamps',
-          'Random orbital sander',
-          'Measuring tape and square',
-          'Paintbrushes for finish'
-        ],
-        skills: ['power-tools-intro', 'basic-joinery', 'sanding-finishing'],
-        category: 'decorative',
-        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-        materialCost: 'Medium',
-        timeRange: { min: 6, max: 8 },
-        lessonSlices: []
-      },
-      'coffee-table': {
-        id: 'coffee-table',
-        title: 'Modern Coffee Table',
-        description: 'A sleek coffee table with clean lines and hidden storage. This intermediate project combines functionality with modern design principles.',
-        difficulty: 'Intermediate',
-        estimatedTime: '8-12 hours',
-        materials: [
-          'Oak hardwood (1" x 6" x 8\')',
-          'Plywood (1/2" x 2\' x 4\')',
-          'Wood glue',
-          'Finish (stain and polyurethane)',
-          'Screws and hardware',
-          'Sandpaper (120, 220, 400 grit)'
-        ],
-        tools: [
-          'Table saw',
-          'Router',
-          'Clamps',
-          'Random orbital sander',
-          'Drill with bits',
-          'Measuring tape and square'
-        ],
-        skills: ['advanced-joinery', 'power-tools-intro', 'sanding-finishing'],
-        category: 'furniture',
-        image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=300&fit=crop',
-        materialCost: 'Medium',
-        timeRange: { min: 8, max: 12 },
-        lessonSlices: []
+  // Fetch project data from Firestore
+  const fetchProjectData = async (projectId: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const projectData = await getProjectById(projectId);
+      
+      if (projectData) {
+        // Transform the data to match our interface
+        const transformedProject: ProjectDetail = {
+          id: projectData.id,
+          title: projectData.title || 'Untitled Project',
+          description: projectData.description || 'No description available',
+          difficulty: projectData.difficulty || 'Beginner',
+          estimatedTime: projectData.estimatedTime || 'Unknown',
+          materials: projectData.materials || [],
+          tools: projectData.tools || [],
+          skills: projectData.skills || [],
+          category: projectData.category || 'general',
+          image: projectData.image || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
+          materialCost: projectData.materialCost || 'Low',
+          timeRange: projectData.timeRange || { min: 1, max: 2 },
+          lessonSlices: projectData.lessonSlices || [],
+          steps: projectData.steps || []
+        };
+        
+        setProject(transformedProject);
+      } else {
+        setError('Project not found');
       }
-    };
-    
-    return projects[projectId] || projects['wooden-sign'];
+    } catch (err) {
+      console.error('Error fetching project:', err);
+      setError('Failed to load project. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const mockProject = getProjectData(id as string);
-
-  const getProjectSteps = (projectId: string): string[] => {
-    const projectSteps: { [key: string]: string[] } = {
-      'wooden-sign': [
-        'Prepare and measure your wood',
-        'Cut the wood to size',
+  // Get project steps from the actual project data
+  const getProjectSteps = (projectData: ProjectDetail): string[] => {
+    if (projectData.steps && projectData.steps.length > 0) {
+      return projectData.steps;
+    }
+    
+    // Fallback: generate steps based on lesson slices if available
+    if (projectData.lessonSlices && projectData.lessonSlices.length > 0) {
+      return projectData.lessonSlices.map((slice: any, index: number) => 
+        slice.title || `Step ${index + 1}`
+      );
+    }
+    
+    // Final fallback: generic steps based on difficulty
+    const genericSteps = {
+      'Beginner': [
+        'Prepare your workspace and materials',
+        'Measure and mark your wood',
+        'Cut pieces to size',
         'Sand all surfaces smooth',
-        'Apply stain and let dry',
-        'Paint or stencil your design',
-        'Apply protective finish',
-        'Attach hanging hardware'
-      ],
-      'wall-art': [
-        'Design your geometric pattern',
-        'Cut wood pieces to size',
-        'Sand all edges smooth',
-        'Assemble pieces with glue',
-        'Clamp and let dry',
-        'Sand the assembled piece',
         'Apply finish and let dry',
-        'Attach hanging hardware'
+        'Assemble your project',
+        'Add final touches'
       ],
-      'coffee-table': [
-        'Cut table top and legs to size',
-        'Create mortise and tenon joints',
-        'Assemble table frame',
-        'Attach table top',
-        'Sand all surfaces smooth',
-        'Apply stain and let dry',
-        'Apply protective finish',
-        'Attach felt pads to bottom'
+      'Intermediate': [
+        'Plan your project layout',
+        'Prepare and cut materials',
+        'Create joinery connections',
+        'Assemble main structure',
+        'Sand and prepare for finish',
+        'Apply stain or finish',
+        'Add hardware and final details'
+      ],
+      'Advanced': [
+        'Design and plan complex joinery',
+        'Prepare premium materials',
+        'Create precise joinery',
+        'Assemble with precision',
+        'Fine-tune and adjust',
+        'Apply professional finish',
+        'Quality check and final assembly'
       ]
     };
     
-    return projectSteps[projectId] || projectSteps['wooden-sign'];
+    return genericSteps[projectData.difficulty] || genericSteps['Beginner'];
   };
 
   useEffect(() => {
-    // In real app, fetch project data based on id
-    setProject(mockProject);
+    if (id) {
+      fetchProjectData(id as string);
+    }
   }, [id]);
 
   const getDifficultyColor = (difficulty: string) => {
@@ -211,8 +170,14 @@ export default function ProjectDetailScreen() {
           text: 'Start Building', 
           style: 'default',
           onPress: () => {
-            // Navigate to project slicer or first lesson
-            router.push('/(tabs)/projects');
+            // Navigate to project slicer to break down the project
+            router.push({
+              pathname: '/woodworking-project/project-slicer',
+              params: { 
+                projectId: project.id,
+                projectTitle: project.title 
+              }
+            });
           }
         }
       ]
@@ -223,11 +188,54 @@ export default function ProjectDetailScreen() {
     router.push('/(tabs)/learn');
   };
 
-  if (!project) {
+  const handleRetry = () => {
+    if (id) {
+      fetchProjectData(id as string);
+    }
+  };
+
+  // Loading state
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#58CC02" />
           <Text style={styles.loadingText}>Loading project...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <IconSymbol name="exclamationmark.triangle" size={48} color="#FF6B6B" />
+          <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // No project found
+  if (!project) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <IconSymbol name="questionmark.circle" size={48} color="#FF9600" />
+          <Text style={styles.errorTitle}>Project Not Found</Text>
+          <Text style={styles.errorText}>The project you're looking for doesn't exist or has been removed.</Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -238,7 +246,22 @@ export default function ProjectDetailScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
-  
+      <View style={[styles.header, {top:topPadding}]}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <IconSymbol name="chevron.left" size={24} color="white" />
+        </TouchableOpacity>
+        
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Project Details</Text>
+        </View>
+        
+        <TouchableOpacity style={styles.shareButton}>
+          <IconSymbol name="square.and.arrow.up" size={20} color="white" />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom:100}}>
         {/* Hero Image Section */}
@@ -267,23 +290,6 @@ export default function ProjectDetailScreen() {
             </View>
           </LinearGradient>
         </View>
-
-        <View style={[styles.header, {top:topPadding}]}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <IconSymbol name="chevron.left" size={24} color="white" />
-        </TouchableOpacity>
-        
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Project Details</Text>
-        </View>
-        
-        <TouchableOpacity style={styles.shareButton}>
-          <IconSymbol name="square.and.arrow.up" size={20} color="white" />
-        </TouchableOpacity>
-      </View>
 
         {/* Quick Stats */}
         <View style={styles.quickStats}>
@@ -336,12 +342,16 @@ export default function ProjectDetailScreen() {
               
               <Text style={styles.sectionTitle}>What You'll Learn</Text>
               <View style={styles.skillsList}>
-                {project.skills.map((skill, index) => (
-                  <View key={index} style={styles.skillItem}>
-                    <IconSymbol name="checkmark.circle.fill" size={16} color="#58CC02" />
-                    <Text style={styles.skillText}>{skill.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</Text>
-                  </View>
-                ))}
+                {project.skills.length > 0 ? (
+                  project.skills.map((skill, index) => (
+                    <View key={index} style={styles.skillItem}>
+                      <IconSymbol name="checkmark.circle.fill" size={16} color="#58CC02" />
+                      <Text style={styles.skillText}>{skill.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.noDataText}>No specific skills listed for this project.</Text>
+                )}
               </View>
             </View>
           )}
@@ -349,14 +359,18 @@ export default function ProjectDetailScreen() {
           {selectedTab === 'materials' && (
             <View style={styles.materialsContent}>
               <Text style={styles.sectionTitle}>Materials Needed</Text>
-              <View style={styles.materialsList}>
-                {project.materials.map((material, index) => (
-                  <View key={index} style={styles.materialItem}>
-                    <View style={styles.materialBullet} />
-                    <Text style={styles.materialText}>{material}</Text>
-                  </View>
-                ))}
-              </View>
+              {project.materials.length > 0 ? (
+                <View style={styles.materialsList}>
+                  {project.materials.map((material, index) => (
+                    <View key={index} style={styles.materialItem}>
+                      <View style={styles.materialBullet} />
+                      <Text style={styles.materialText}>{material}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.noDataText}>No materials listed for this project.</Text>
+              )}
               <View style={styles.costEstimate}>
                 <Text style={styles.costEstimateText}>
                   Estimated Cost: ${project.materialCost === 'Low' ? '15-25' : project.materialCost === 'Medium' ? '25-50' : '50-100'}
@@ -368,16 +382,20 @@ export default function ProjectDetailScreen() {
           {selectedTab === 'tools' && (
             <View style={styles.toolsContent}>
               <Text style={styles.sectionTitle}>Tools Required</Text>
-              <View style={styles.toolsList}>
-                {project.tools.map((tool, index) => (
-                  <View key={index} style={styles.toolItem}>
-                    <View style={styles.toolIcon}>
-                      <IconSymbol name="hammer.fill" size={16} color="#1CB0F6" />
+              {project.tools.length > 0 ? (
+                <View style={styles.toolsList}>
+                  {project.tools.map((tool, index) => (
+                    <View key={index} style={styles.toolItem}>
+                      <View style={styles.toolIcon}>
+                        <IconSymbol name="hammer.fill" size={16} color="#1CB0F6" />
+                      </View>
+                      <Text style={styles.toolText}>{tool}</Text>
                     </View>
-                    <Text style={styles.toolText}>{tool}</Text>
-                  </View>
-                ))}
-              </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.noDataText}>No tools listed for this project.</Text>
+              )}
               <View style={styles.toolsNote}>
                 <Text style={styles.toolsNoteText}>
                   Don't have all the tools? Check our tool rental program or visit your local makerspace!
@@ -390,7 +408,7 @@ export default function ProjectDetailScreen() {
             <View style={styles.stepsContent}>
               <Text style={styles.sectionTitle}>Project Steps</Text>
               <View style={styles.stepsList}>
-                {getProjectSteps(project.id).map((step: string, index: number) => (
+                {getProjectSteps(project).map((step: string, index: number) => (
                   <View key={index} style={styles.stepItem}>
                     <View style={styles.stepNumber}>
                       <Text style={styles.stepNumberText}>{index + 1}</Text>
@@ -448,16 +466,55 @@ const styles = StyleSheet.create({
     fontFamily: FontFamilies.dinRounded,
     color: '#666666',
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontFamily: FontFamilies.featherBold,
+    color: '#FF6B6B',
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  errorText: {
+    fontSize: 16,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#1CB0F6',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontFamily: FontFamilies.featherBold,
+    color: '#FFFFFF',
+  },
+  backButton: {
+    padding: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#1CB0F6',
+    textDecorationLine: 'underline',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     borderBottomColor: '#F0F0F0',
-    position:'absolute'
-  },
-  backButton: {
-    padding: 8,
+    position:'absolute',
+    zIndex: 1000,
   },
   headerCenter: {
     flex: 1,
@@ -613,6 +670,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FontFamilies.dinRounded,
     color: '#333333',
+  },
+  noDataText: {
+    fontSize: 16,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    textAlign: 'center',
+    marginTop: 10,
+    fontStyle: 'italic',
   },
   materialsContent: {
     gap: 20,

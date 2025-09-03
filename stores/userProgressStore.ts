@@ -1,4 +1,4 @@
-import { firestoreService } from '@/services/firestoreService';
+import { getLessonContent as firestoreGetLessonContent, firestoreService, getCategories, getProjects, getSkills, updateUserLessonProgress } from '@/services/firestoreService';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { useAuthStore } from './authStore';
@@ -19,7 +19,7 @@ interface Skill {
   category: 'safety' | 'tools' | 'techniques' | 'joinery' | 'finishing' | 'design';
 }
 
-interface Project {
+export interface Project {
   id: string;
   title: string;
   description: string;
@@ -31,6 +31,15 @@ interface Project {
   lessonSlices: LessonSlice[];
   image: string;
   category: string;
+  materialCost?: 'Low' | 'Medium' | 'High';
+  timeRange?: {
+    min: number;
+    max: number;
+  };
+  xpReward?: number;
+  color?: string;
+  icon?: string;
+  cutList?: CutListItem[];
 }
 
 interface LessonSlice {
@@ -191,6 +200,20 @@ interface UserProgressStore extends UserProgress {
   // State for offline content
   offlineBundles: OfflineBundle[];
   isDownloading: boolean;
+  
+  // New Firestore data state and actions
+  skills: Skill[];
+  projects: Project[];
+  categories: any[];
+  lessonContent: any[];
+  isLoading: boolean;
+  fetchSkills: () => Promise<void>;
+  fetchProjects: () => Promise<void>;
+  fetchCategories: () => Promise<void>;
+  fetchLessonContent: () => Promise<void>;
+  fetchAllData: () => Promise<void>;
+  getLessonContent: (skillId: string) => Promise<any | null>;
+  updateLessonProgress: (skillId: string, progress: any) => Promise<void>;
 }
 
 // Enhanced woodworking skills based on TedsWoodworking approach
@@ -498,6 +521,13 @@ export const useUserProgressStore = create<UserProgressStore>()(
       // Offline content state
       offlineBundles: [],
       isDownloading: false,
+      
+      // New Firestore data state
+      skills: [],
+      projects: [],
+      categories: [],
+      lessonContent: [],
+      isLoading: false,
 
       // Actions
       checkDailyLogin: async () => {
@@ -595,8 +625,42 @@ export const useUserProgressStore = create<UserProgressStore>()(
       },
 
       completeSkill: async (skillId) => {
+        console.log('🎯 completeSkill called with:', skillId);
+        
+        // Special handling for START section
+        if (skillId === 'start') {
+          console.log('🌟 Handling START section completion');
+          const { completedSkills } = get();
+          
+          // Check if already completed to avoid duplicates
+          if (!completedSkills.includes('start')) {
+            console.log('✅ Adding start to completedSkills');
+            set({
+              completedSkills: [...completedSkills, 'start'],
+            });
+
+            // Sync with Firestore if user is authenticated
+            try {
+              const { user } = useAuthStore.getState();
+              if (user?.uid) {
+                await firestoreService.updateUserProgress(user.uid, {
+                  completedSkills: [...completedSkills, 'start'],
+                });
+                console.log('✅ Synced START completion to Firestore');
+              }
+            } catch (error) {
+              console.error('Error syncing START completion with Firestore:', error);
+            }
+          } else {
+            console.log('⚠️ START already completed, skipping');
+          }
+          return;
+        }
+        
+        // Regular skill completion logic
         const skill = woodworkingSkills.find(s => s.id === skillId);
         if (skill) {
+          console.log('🎯 Completing regular skill:', skill.title);
           const { totalXP, skillsCompleted, completedSkills } = get();
           const newTotalXP = totalXP + skill.xpReward;
           const newLevel = Math.floor(newTotalXP / 500) + 1;
@@ -622,6 +686,8 @@ export const useUserProgressStore = create<UserProgressStore>()(
           } catch (error) {
             console.error('Error syncing progress with Firestore:', error);
           }
+        } else {
+          console.log('❌ Skill not found in woodworkingSkills:', skillId);
         }
       },
 
@@ -929,6 +995,87 @@ export const useUserProgressStore = create<UserProgressStore>()(
 
       isProjectOffline: (projectId) => {
         return get().offlineBundles.some(bundle => bundle.projectId === projectId);
+      },
+      
+      // New Firestore data actions
+      fetchSkills: async () => {
+        try {
+          set({ isLoading: true });
+          const skills = await getSkills();
+          set({ skills, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching skills:', error);
+          set({ isLoading: false });
+        }
+      },
+      
+      fetchProjects: async () => {
+        try {
+          set({ isLoading: true });
+          const projects = await getProjects();
+          set({ projects, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching projects:', error);
+          set({ isLoading: false });
+        }
+      },
+      
+      fetchCategories: async () => {
+        try {
+          set({ isLoading: true });
+          const categories = await getCategories();
+          set({ categories, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching categories:', error);
+          set({ isLoading: false });
+        }
+      },
+      
+      fetchAllData: async () => {
+        try {
+          set({ isLoading: true });
+          const [skills, projects, categories] = await Promise.all([
+            getSkills(),
+            getProjects(),
+            getCategories()
+          ]);
+          set({ skills, projects, categories, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching all data:', error);
+          set({ isLoading: false });
+        }
+      },
+      
+      fetchLessonContent: async () => {
+        try {
+          set({ isLoading: true });
+          const lessonContent = await firestoreService.getAllLessonContent();
+          set({ lessonContent, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching lesson content:', error);
+          set({ isLoading: false });
+        }
+      },
+      
+      getLessonContent: async (skillId: string) => {
+        try {
+          return await firestoreGetLessonContent(skillId);
+        } catch (error) {
+          console.error('Error fetching lesson content:', error);
+          return null;
+        }
+      },
+      
+      updateLessonProgress: async (skillId: string, progress: any) => {
+        try {
+          const { useAuthStore } = await import('./authStore');
+          const { firebaseUser } = useAuthStore.getState();
+          if (firebaseUser?.uid) {
+            await updateUserLessonProgress(firebaseUser.uid, skillId, progress);
+          }
+        } catch (error) {
+          console.error('Error updating lesson progress:', error);
+        }
       },
     }),
     {

@@ -1,16 +1,17 @@
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Colors as ThemeColors } from '@/constants/Colors';
 import { BorderRadius, Colors, Spacing } from '@/constants/DesignSystem';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React, { useState } from 'react';
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TextInputProps,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextInputProps,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
 
 interface InputProps extends Omit<TextInputProps, 'style'> {
@@ -46,6 +47,7 @@ export function Input({
   ...textInputProps
 }: InputProps) {
   const colorScheme = useColorScheme();
+  const colors = ThemeColors[colorScheme ?? 'light'];
   const [isFocused, setIsFocused] = useState(false);
 
   const getContainerStyle = (): ViewStyle => {
