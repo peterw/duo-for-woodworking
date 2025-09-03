@@ -388,6 +388,71 @@ export const updateProjectProgress = async (projectId: string, lessonSlices: any
   }
 };
 
+// Get coach tips from Firestore
+export const getCoachTips = async (): Promise<any[]> => {
+  try {
+    const snapshot = await firestore().collection('coachTips').orderBy('createdAt').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching coach tips:', error);
+    return [];
+  }
+};
+
+// Save a coach tip to savedCoachTips collection
+export const saveCoachTip = async (tipData: any): Promise<void> => {
+  try {
+    await firestore()
+      .collection('savedCoachTips')
+      .doc(tipData.id)
+      .set({
+        ...tipData,
+        savedAt: new Date().toISOString(),
+      });
+  } catch (error) {
+    console.error('Error saving coach tip:', error);
+    throw error;
+  }
+};
+
+// Unsave a coach tip from savedCoachTips collection
+export const unsaveCoachTip = async (tipId: string): Promise<void> => {
+  try {
+    await firestore()
+      .collection('savedCoachTips')
+      .doc(tipId)
+      .delete();
+  } catch (error) {
+    console.error('Error unsaving coach tip:', error);
+    throw error;
+  }
+};
+
+// Get all saved coach tips
+export const getSavedCoachTips = async (): Promise<any[]> => {
+  try {
+    const snapshot = await firestore().collection('savedCoachTips').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching saved coach tips:', error);
+    return [];
+  }
+};
+
+// Check if a tip is saved
+export const isCoachTipSaved = async (tipId: string): Promise<boolean> => {
+  try {
+    const doc = await firestore()
+      .collection('savedCoachTips')
+      .doc(tipId)
+      .get();
+    return doc.exists();
+  } catch (error) {
+    console.error('Error checking if coach tip is saved:', error);
+    return false;
+  }
+};
+
 // Export all functions as a service object for backward compatibility
 export const firestoreService = {
   createUser,
@@ -415,4 +480,10 @@ export const firestoreService = {
   updateUserLessonProgress,
   // Project methods
   updateProjectProgress,
+  // Coach tips methods
+  getCoachTips,
+  saveCoachTip,
+  unsaveCoachTip,
+  getSavedCoachTips,
+  isCoachTipSaved,
 };

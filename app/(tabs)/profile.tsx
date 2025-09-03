@@ -343,6 +343,30 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Saved Tips Section */}
+        <View style={styles.savedTipsSection}>
+          <TouchableOpacity 
+            style={styles.savedTipsCard}
+            onPress={() => {
+              hapticSelection();
+              router.push('/saved-tips');
+            }}
+            activeOpacity={0.7}
+          >
+
+                <View style={styles.savedTipsLeft}>
+                  <Text style={styles.savedTipsIcon}>💡</Text>
+                  <View style={styles.savedTipsTextContainer}>
+                    <Text style={styles.savedTipsTitle}>Saved Tips</Text>
+                    <Text style={styles.savedTipsSubtitle}>Your favorite woodworking tips</Text>
+                  </View>
+                </View>
+                <View style={styles.savedTipsRight}>
+                  <IconSymbol name="chevron.right" size={20} color="gray" />
+                </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Account Information Section */}
         <View style={styles.accountSection}>
           <Text style={styles.sectionTitle}>Account Information</Text>
@@ -700,6 +724,54 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
     fontWeight: '500',
+  },
+  
+  // Saved Tips Section
+  savedTipsSection: {
+    marginBottom: 30,
+    paddingHorizontal: 20,
+  },
+  savedTipsCard: {
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.10,
+    shadowRadius: 10,
+    elevation: 8,
+    backgroundColor:'white',
+    width: '100%',
+    paddingVertical:20,
+    paddingHorizontal:20,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'space-between',
+  },
+  savedTipsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  savedTipsIcon: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  savedTipsTextContainer: {
+    flex: 1,
+  },
+  savedTipsTitle: {
+    fontSize: 18,
+    fontFamily: FontFamilies.featherBold,
+    color: 'black',
+    marginBottom: 4,
+  },
+  savedTipsSubtitle: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: 'gray',
+    opacity: 0.9,
+  },
+  savedTipsRight: {
+    marginLeft: 16,
   },
   
   // Account Section

@@ -2,10 +2,12 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { getCoachTips, isCoachTipSaved, saveCoachTip, unsaveCoachTip } from '@/services/firestoreService';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Share from 'react-native-share';
 
 interface CoachTip {
   id: string;
@@ -13,67 +15,60 @@ interface CoachTip {
   content: string;
   category: 'safety' | 'technique' | 'tool' | 'material' | 'motivation';
   icon: string;
+  color: string;
 }
-
-const coachTips: CoachTip[] = [
-  {
-    id: 'safety-first',
-    title: 'Safety First',
-    content: 'Always wear safety glasses and hearing protection. Keep your workspace clean and well-lit. Learn proper tool handling before starting any project.',
-    category: 'safety',
-    icon: 'shield.fill',
-  },
-  {
-    id: 'measure-twice',
-    title: 'Measure Twice, Cut Once',
-    content: 'This old adage is crucial in woodworking. Double-check your measurements and mark your cuts clearly. It saves time and materials in the long run.',
-    category: 'technique',
-    icon: 'ruler.fill',
-  },
-  {
-    id: 'sharp-tools',
-    title: 'Keep Tools Sharp',
-    content: 'Sharp tools are safer and more effective. Learn to sharpen your chisels, planes, and saws regularly. Dull tools require more force and can cause accidents.',
-    category: 'tool',
-    icon: 'scissors',
-  },
-  {
-    id: 'wood-selection',
-    title: 'Choose the Right Wood',
-    content: 'Start with softwoods like pine for practice. Hardwoods like oak and maple are beautiful but more challenging to work with. Consider your project needs.',
-    category: 'material',
-    icon: 'leaf.fill',
-  },
-  {
-    id: 'patience-practice',
-    title: 'Patience and Practice',
-    content: 'Woodworking is a skill that develops over time. Start with simple projects and gradually increase complexity. Every mistake is a learning opportunity.',
-    category: 'motivation',
-    icon: 'heart.fill',
-  },
-  {
-    id: 'workshop-organization',
-    title: 'Organize Your Workshop',
-    content: 'A clean, organized workspace improves safety and efficiency. Designate places for tools and materials. Good lighting and ventilation are essential.',
-    category: 'safety',
-    icon: 'house.fill',
-  }
-];
 
 export default function AICoach() {
   const colorScheme = useColorScheme();
   const [selectedTip, setSelectedTip] = useState<CoachTip | null>(null);
   const [showAllTips, setShowAllTips] = useState(false);
+  const [coachTips, setCoachTips] = useState<CoachTip[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [savedTips, setSavedTips] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'safety': return '#FF6B6B';
-      case 'technique': return '#4ECDC4';
-      case 'tool': return '#45B7D1';
-      case 'material': return '#96CEB4';
-      case 'motivation': return '#FFEAA7';
-      default: return Colors[colorScheme ?? 'light'].primary;
-    }
+  // Fetch coach tips from Firestore and check saved status
+  useEffect(() => {
+    const fetchCoachTips = async () => {
+      try {
+        setIsLoading(true);
+        const tips = await getCoachTips();
+        setCoachTips(tips);
+        
+        // Check which tips are saved
+        const savedTipIds: string[] = [];
+        for (const tip of tips) {
+          const isSaved = await isCoachTipSaved(tip.id);
+          if (isSaved) {
+            savedTipIds.push(tip.id);
+          }
+        }
+        setSavedTips(savedTipIds);
+      } catch (error) {
+        console.error('Error fetching coach tips:', error);
+        // Fallback to empty array if fetch fails
+        setCoachTips([]);
+        setSavedTips([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCoachTips();
+  }, []);
+
+  const getCategoryColor = (tip: CoachTip) => {
+    // Use the color from Firestore data if available, otherwise fallback to category-based colors
+    return tip.color || (() => {
+      switch (tip.category) {
+        case 'safety': return '#FF6B6B';
+        case 'technique': return '#4ECDC4';
+        case 'tool': return '#45B7D1';
+        case 'material': return '#96CEB4';
+        case 'motivation': return '#FFEAA7';
+        default: return Colors[colorScheme ?? 'light'].primary;
+      }
+    })();
   };
 
   const getCategoryIcon = (category: string) => {
@@ -98,19 +93,59 @@ export default function AICoach() {
     });
   };
 
+  const handleShareTip = async (tip: CoachTip) => {
+    try {
+      const shareOptions = {
+        title: `Woodworking Tip: ${tip.title}`,
+        message: `🔨 ${tip.title}\n\n${tip.content}\n\nCategory: ${tip.category.toUpperCase()}\n\nShared from Duo for Woodworking App`,
+        url: '', // You can add a deep link URL here if needed
+      };
+
+      await Share.open(shareOptions);
+    } catch (error) {
+      // User cancelled sharing or there was an error
+      console.log('Share cancelled or error:', error);
+    }
+  };
+
+  const handleSaveTip = async (tip: CoachTip) => {
+    try {
+      setIsSaving(true);
+      const isSaved = savedTips.includes(tip.id);
+
+      if (isSaved) {
+        // Unsave the tip
+        await unsaveCoachTip(tip.id);
+        setSavedTips(prev => prev.filter(id => id !== tip.id));
+      } else {
+        // Save the tip
+        await saveCoachTip(tip);
+        setSavedTips(prev => [...prev, tip.id]);
+      }
+    } catch (error) {
+      console.error('Error saving/unsaving tip:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const isTipSaved = (tipId: string) => {
+    return savedTips.includes(tipId);
+  };
+
   const renderTipCard = (tip: CoachTip) => (
     <TouchableOpacity
       key={tip.id}
       style={[
         styles.tipCard,
-        { borderColor: getCategoryColor(tip.category) }
+        { borderColor: getCategoryColor(tip) }
       ]}
       onPress={() => setSelectedTip(tip)}
       activeOpacity={0.7}
     >
       <View style={[
         styles.tipIcon,
-        { backgroundColor: getCategoryColor(tip.category) }
+        { backgroundColor: getCategoryColor(tip) }
       ]}>
         <IconSymbol name={tip.icon as any} size={20} color="white" />
       </View>
@@ -129,7 +164,7 @@ export default function AICoach() {
         </Text>
         <View style={[
           styles.categoryBadge,
-          { backgroundColor: getCategoryColor(tip.category) }
+          { backgroundColor: getCategoryColor(tip) }
         ]}>
           <Text style={styles.categoryText}>
             {tip.category}
@@ -164,7 +199,7 @@ export default function AICoach() {
                 <View style={styles.tipDetailHeader}>
                   <View style={[
                     styles.tipDetailIcon,
-                    { backgroundColor: getCategoryColor(selectedTip.category) }
+                    { backgroundColor: getCategoryColor(selectedTip) }
                   ]}>
                     <IconSymbol name={selectedTip.icon as any} size={32} color="white" />
                   </View>
@@ -183,7 +218,7 @@ export default function AICoach() {
                     
                     <View style={[
                       styles.tipDetailCategory,
-                      { backgroundColor: getCategoryColor(selectedTip.category) }
+                      { backgroundColor: getCategoryColor(selectedTip) }
                     ]}>
                       <Text style={styles.tipDetailCategoryText}>
                         {selectedTip.category.toUpperCase()}
@@ -201,12 +236,32 @@ export default function AICoach() {
                 
                 {/* Action Buttons */}
                 <View style={styles.tipActionButtons}>
-                  <TouchableOpacity style={styles.saveTipButton}>
-                    <IconSymbol name="heart" size={20} color="white" />
-                    <Text style={styles.saveTipButtonText}>Save Tip</Text>
+                  <TouchableOpacity 
+                    style={[
+                      styles.saveTipButton,
+                      isTipSaved(selectedTip.id) && styles.savedTipButton
+                    ]}
+                    onPress={() => handleSaveTip(selectedTip)}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <IconSymbol 
+                        name={isTipSaved(selectedTip.id) ? "heart.fill" : "heart"} 
+                        size={20} 
+                        color="white" 
+                      />
+                    )}
+                    <Text style={styles.saveTipButtonText}>
+                      {isTipSaved(selectedTip.id) ? 'Saved' : 'Save Tip'}
+                    </Text>
                   </TouchableOpacity>
                   
-                  <TouchableOpacity style={styles.shareButton}>
+                  <TouchableOpacity 
+                    style={styles.shareButton}
+                    onPress={() => handleShareTip(selectedTip)}
+                  >
                     <IconSymbol name="square.and.arrow.up" size={20} color="black" />
                     <Text style={styles.shareButtonText}>Share</Text>
                   </TouchableOpacity>
@@ -221,6 +276,20 @@ export default function AICoach() {
 
   const displayedTips = showAllTips ? coachTips : coachTips.slice(0, 3);
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors[colorScheme ?? 'light'].primary} />
+          <Text style={[styles.loadingText, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
+            Loading tips...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.tipsSection}>
@@ -228,14 +297,24 @@ export default function AICoach() {
           <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
             Today's Tips
           </Text>
-          <TouchableOpacity onPress={() => setShowAllTips(!showAllTips)}>
-            <Text style={[styles.showMoreButton, { color: Colors[colorScheme ?? 'light'].primary }]}>
-              {showAllTips ? 'Show Less' : 'Show More'}
-            </Text>
-          </TouchableOpacity>
+          {coachTips.length > 3 && (
+            <TouchableOpacity onPress={() => setShowAllTips(!showAllTips)}>
+              <Text style={[styles.showMoreButton, { color: Colors[colorScheme ?? 'light'].primary }]}>
+                {showAllTips ? 'Show Less' : 'Show More'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
         
-        {displayedTips.map((tip) => renderTipCard(tip))}
+        {coachTips.length > 0 ? (
+          displayedTips.map((tip) => renderTipCard(tip))
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={[styles.emptyStateText, { color: Colors[colorScheme ?? 'light'].textSecondary }]}>
+              No tips available at the moment
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.header}>
@@ -575,7 +654,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#8B4513',
+    backgroundColor: Colors.light.primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -586,6 +665,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FontFamilies.dinRounded,
     fontWeight: '500',
+  },
+  savedTipButton: {
+    backgroundColor: '#28a745', // Green color for saved state
   },
   shareButton: {
     flex: 1,
@@ -605,5 +687,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FontFamilies.dinRounded,
     fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: FontFamilies.dinRounded,
+    marginTop: 12,
+  },
+  emptyState: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontFamily: FontFamilies.dinRounded,
+    textAlign: 'center',
   },
 });
