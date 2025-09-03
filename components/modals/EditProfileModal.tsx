@@ -5,26 +5,28 @@ import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/stores';
 import { hapticSelection } from '@/utils/haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  Alert,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import Animated, {
-    Extrapolate,
-    interpolate,
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming
+  Extrapolate,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -50,6 +52,7 @@ export function EditProfileModal({ visible, onClose, onSuccess }: EditProfileMod
     motivation: '',
     goal: ''
   });
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -72,6 +75,7 @@ export function EditProfileModal({ visible, onClose, onSuccess }: EditProfileMod
         motivation: user.motivation || '',
         goal: user.goal || ''
       });
+      setProfileImage(user.profileImageUrl || null);
       setErrors({});
     }
   }, [visible, user]);
@@ -123,6 +127,114 @@ export function EditProfileModal({ visible, onClose, onSuccess }: EditProfileMod
     }
   };
 
+  const handleImagePicker = async () => {
+    hapticSelection();
+    
+    try {
+      // Check if ImagePicker is available
+      if (!ImagePicker || !ImagePicker.requestMediaLibraryPermissionsAsync) {
+        Alert.alert(
+          'Feature Not Available',
+          'Image picker is not available. Please rebuild the app to enable this feature.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Request permission to access media library
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to your photo library to select a profile picture.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Show action sheet for image source
+      Alert.alert(
+        'Select Profile Picture',
+        'Choose how you want to add your profile picture',
+        [
+          {
+            text: 'Camera',
+            onPress: () => openCamera(),
+          },
+          {
+            text: 'Photo Library',
+            onPress: () => openImageLibrary(),
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error requesting permissions:', error);
+      Alert.alert('Error', 'Failed to access photo library. Please try again.');
+    }
+  };
+
+  const openCamera = async () => {
+    try {
+      if (!ImagePicker || !ImagePicker.requestCameraPermissionsAsync) {
+        Alert.alert('Error', 'Camera functionality is not available. Please rebuild the app.');
+        return;
+      }
+
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to your camera to take a profile picture.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setProfileImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error opening camera:', error);
+      Alert.alert('Error', 'Failed to open camera. Please try again.');
+    }
+  };
+
+  const openImageLibrary = async () => {
+    try {
+      if (!ImagePicker || !ImagePicker.launchImageLibraryAsync) {
+        Alert.alert('Error', 'Photo library functionality is not available. Please rebuild the app.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setProfileImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error opening image library:', error);
+      Alert.alert('Error', 'Failed to open photo library. Please try again.');
+    }
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -153,7 +265,8 @@ export function EditProfileModal({ visible, onClose, onSuccess }: EditProfileMod
       const { email, ...updateData } = formData;
       const success = await updateProfile({
         ...updateData,
-        experience: formData.experience as 'beginner' | 'intermediate' | 'advanced'
+        experience: formData.experience as 'beginner' | 'intermediate' | 'advanced',
+        ...(profileImage && { profileImageUrl: profileImage })
       });
       
       if (success) {
@@ -233,7 +346,11 @@ export function EditProfileModal({ visible, onClose, onSuccess }: EditProfileMod
             >
               <Animated.View style={contentStyle}>
                 {/* Profile Picture Section */}
-                <View style={styles.profileSection}>
+                <TouchableOpacity 
+                  style={styles.profileSection}
+                  onPress={handleImagePicker}
+                  activeOpacity={0.8}
+                >
                   <LinearGradient
                     colors={['#58CC02', '#46B700']}
                     style={styles.profileGradient}
@@ -241,13 +358,23 @@ export function EditProfileModal({ visible, onClose, onSuccess }: EditProfileMod
                     end={{ x: 1, y: 1 }}
                   >
                     <View style={styles.profileImageContainer}>
-                      <Text style={styles.profileInitial}>
-                        {formData.fullName.charAt(0)?.toUpperCase() || 'U'}
-                      </Text>
+                      {profileImage ? (
+                        <Image 
+                          source={{ uri: profileImage }} 
+                          style={styles.profileImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <Text style={styles.profileInitial}>
+                          {formData.fullName.charAt(0)?.toUpperCase() || 'U'}
+                        </Text>
+                      )}
                     </View>
-                    <Text style={styles.profileText}>Profile Picture</Text>
+                    <Text style={styles.profileText}>
+                      {profileImage ? 'Change Picture' : 'Add Picture'}
+                    </Text>
                   </LinearGradient>
-                </View>
+                </TouchableOpacity>
 
                 {/* Form Fields */}
                 <View style={styles.formSection}>
@@ -469,6 +596,11 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontFamily: FontFamilies.featherBold,
     color: '#FFFFFF',
+  },
+  profileImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   profileText: {
     fontSize: 16,

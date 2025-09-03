@@ -1,6 +1,7 @@
 import { CreateUserData, firestoreService, FirestoreUser } from '@/services/firestoreService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 import { AppleAuthenticationScope, isAvailableAsync, signInAsync } from 'expo-apple-authentication';
 import { sha256 } from 'js-sha256';
 import { create } from 'zustand';
@@ -27,7 +28,7 @@ interface AuthState {
   checkAuthStatus: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
   updateProfile: (updates: Partial<User>) => Promise<boolean>;
-  deleteAccount: (password?: string) => Promise<boolean>;
+  deleteAppleAccount: () => Promise<boolean>;
   recoverAccount: () => Promise<boolean>;
 }
 
@@ -690,34 +691,89 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      deleteAccount: async (password?: string) => {
+
+      deleteAppleAccount: async () => {
         const { user, firebaseUser } = get();
         if (!user || !firebaseUser) {
           set({ error: 'You must be logged in to delete your account.' });
           return false;
         }
-        
+
         try {
-          // Check if re-authentication is needed
-          if (firebaseUser.providerData[0]?.providerId === 'password' && password) {
-            // Re-authenticate with password before deletion
-            const credential = auth.EmailAuthProvider.credential(
-              firebaseUser.email!,
-              password
-            );
-            await firebaseUser.reauthenticateWithCredential(credential);
-          } else if (firebaseUser.providerData[0]?.providerId === 'apple.com') {
-            // For Apple Sign-In, we need to handle re-authentication differently
-            // This will be handled by the UI layer
-            throw new Error('Apple re-authentication required');
+          set({ isLoading: true, error: null });
+
+          // Check if Apple Sign In is available
+          const isAvailable = await isAvailableAsync();
+          if (!isAvailable) {
+            set({ 
+              isLoading: false, 
+              error: 'Apple Sign In is not available on this device.' 
+            });
+            return false;
           }
-          
-          // Delete from Firestore first
-          await firestoreService.deleteUser(user.uid);
-          
+
+          // Generate a random nonce for security
+          const rawNonce = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+          const nonce = sha256(rawNonce);
+
+          // Request Apple Sign In for re-authentication
+          let credential;
+          try {
+            credential = await signInAsync({
+              requestedScopes: [
+                AppleAuthenticationScope.FULL_NAME,
+                AppleAuthenticationScope.EMAIL,
+              ],
+              nonce: nonce,
+            });
+          } catch (signInError: any) {
+            console.error('Apple re-authentication error:', signInError);
+            
+            if (signInError.code === 'ERR_CANCELED') {
+              set({ 
+                isLoading: false, 
+                error: null // Don't show error for user cancellation
+              });
+              return false;
+            } else {
+              set({ 
+                isLoading: false, 
+                error: 'Apple re-authentication failed. Please try again.' 
+              });
+              return false;
+            }
+          }
+
+          if (!credential.identityToken) {
+            set({ 
+              isLoading: false, 
+              error: 'Apple re-authentication failed - no identity token returned.' 
+            });
+            return false;
+          }
+
+          // Create Firebase credential for re-authentication
+          const { AppleAuthProvider } = await import('@react-native-firebase/auth');
+          const appleCredential = AppleAuthProvider.credential(
+            credential.identityToken,
+            rawNonce
+          );
+
+          // Re-authenticate with Firebase
+          await firebaseUser.reauthenticateWithCredential(appleCredential);
+
+          // Get user document to check for any related data
+          const userDoc = await firestore().collection('users').doc(user.uid).get();
+          if (!userDoc.exists) {
+            throw new Error('User document does not exist');
+          }
+
+          // Delete user document from Firestore
+          await firestore().collection('users').doc(user.uid).delete();
+
           // Delete Firebase Auth user
           await firebaseUser.delete();
-          
+
           set({
             isAuthenticated: false,
             user: null,
@@ -725,10 +781,10 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: null,
           });
-          
+
           return true;
         } catch (error: any) {
-          console.error('Account deletion error:', error);
+          console.error('Apple account deletion error:', error);
           
           let errorMessage = 'Account deletion failed. Please try again.';
           if (error.message?.includes('network')) {
@@ -736,12 +792,12 @@ export const useAuthStore = create<AuthState>()(
           } else if (error.message?.includes('permission')) {
             errorMessage = 'Permission denied. Please contact support.';
           } else if (error.message?.includes('requires-recent-login')) {
-            errorMessage = 'For security, please log in again before deleting your account.';
-          } else if (error.message?.includes('Apple re-authentication required')) {
-            errorMessage = 'Apple re-authentication required';
+            errorMessage = 'For security, please re-authenticate before deleting your account.';
+          } else if (error.message?.includes('User document does not exist')) {
+            errorMessage = 'User data not found. Please contact support.';
           }
           
-          set({ error: errorMessage });
+          set({ isLoading: false, error: errorMessage });
           return false;
         }
       },

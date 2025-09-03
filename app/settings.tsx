@@ -10,6 +10,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Switch,
@@ -141,9 +142,17 @@ export default function SettingsScreen() {
           >
             <View style={styles.profileInfo}>
               <View style={styles.profileImageContainer}>
-                <Text style={styles.profileInitial}>
-                  {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
-                </Text>
+                {user?.profileImageUrl ? (
+                  <Image 
+                    source={{ uri: user.profileImageUrl }} 
+                    style={styles.profileImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text style={styles.profileInitial}>
+                    {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
+                  </Text>
+                )}
               </View>
               <View style={styles.profileTextContainer}>
                 <Text style={styles.profileName}>
@@ -320,7 +329,6 @@ export default function SettingsScreen() {
       <DeleteAccountModal
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        onSuccess={() => router.replace('/welcome')}
       />
       
       {/* Edit Profile Modal */}
@@ -405,6 +413,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   profileInitial: {
     fontSize: 24,

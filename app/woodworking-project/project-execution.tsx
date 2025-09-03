@@ -3,10 +3,11 @@ import { FontFamilies } from '@/hooks/AppFonts';
 import { getProjectById, updateProjectProgress } from '@/services/firestoreService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Dimensions,
   Image,
   ScrollView,
@@ -66,6 +67,18 @@ export default function ProjectExecutionScreen() {
   const [error, setError] = useState<string | null>(null);
   const [currentSliceIndex, setCurrentSliceIndex] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
+  
+  // Animation values
+  const sliceAnimations = useRef<Animated.Value[]>([]).current;
+  const progressBarAnimation = useRef(new Animated.Value(0)).current;
+  const pressAnimations = useRef<Animated.Value[]>([]).current;
+  
+  // Progress view animations - start at 0 (hidden)
+  const progressHeaderAnimation = useRef(new Animated.Value(0)).current;
+  const stepsAnimation = useRef(new Animated.Value(0)).current;
+  const criteriaAnimation = useRef(new Animated.Value(0)).current;
+  const resourcesAnimation = useRef(new Animated.Value(0)).current;
+  const completeButtonAnimation = useRef(new Animated.Value(0)).current;
 
   // Fetch project data
   const fetchProjectData = async (projectId: string) => {
@@ -76,6 +89,7 @@ export default function ProjectExecutionScreen() {
       const projectData = await getProjectById(projectId);
       
       if (projectData) {
+
         const transformedProject: ProjectDetail = {
           id: projectData.id,
           title: projectData.title || 'Untitled Project',
@@ -260,6 +274,35 @@ export default function ProjectExecutionScreen() {
     }
   }, [projectId]);
 
+  // Trigger entrance animations when slices are loaded
+  useEffect(() => {
+    if (slices.length > 0) {
+      // Initialize animation arrays
+      initializeAnimations();
+      
+      // Start entrance animations
+      setTimeout(() => {
+        animateSlicesEntrance();
+      }, 300);
+    }
+  }, [slices.length]);
+
+  // Update progress bar animation when progress changes
+  useEffect(() => {
+    if (slices.length > 0) {
+      const progress = getProgressPercentage();
+      animateProgressBar(progress);
+    }
+  }, [slices]);
+
+  // Trigger progress view animations when showProgress changes
+  useEffect(() => {
+    if (showProgress) {
+      // Start animations immediately when component mounts
+      animateProgressViewEntrance();
+    }
+  }, [showProgress]);
+
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'planning': return '#FFEAA7';
@@ -298,6 +341,9 @@ export default function ProjectExecutionScreen() {
           style: 'default',
           onPress: async () => {
             try {
+              // Find the slice index for animation
+              const sliceIndex = slices.findIndex(slice => slice.id === sliceId);
+              
               // Update local state first
               const updatedSlices = slices.map(slice => 
                 slice.id === sliceId 
@@ -306,6 +352,15 @@ export default function ProjectExecutionScreen() {
               );
               
               setSlices(updatedSlices);
+              
+              // Animate slice completion
+              if (sliceIndex !== -1) {
+                animateSliceCompletion(sliceIndex);
+              }
+              
+              // Animate progress bar
+              const newProgress = Math.round((updatedSlices.filter(slice => slice.isCompleted).length / updatedSlices.length) * 100);
+              animateProgressBar(newProgress);
               
               // Save progress to Firebase
               if (projectId) {
@@ -361,6 +416,121 @@ export default function ProjectExecutionScreen() {
   };
 
   const getCurrentSlice = () => slices[currentSliceIndex];
+
+  // Initialize animation arrays
+  const initializeAnimations = () => {
+    // Clear existing animations
+    sliceAnimations.length = 0;
+    pressAnimations.length = 0;
+    
+    // Create new animations for each slice
+    slices.forEach(() => {
+      sliceAnimations.push(new Animated.Value(0));
+      pressAnimations.push(new Animated.Value(1));
+    });
+  };
+
+  // Animation functions
+  const animateSlicesEntrance = () => {
+    const animations = slices.map((_, index) => 
+      Animated.timing(sliceAnimations[index], {
+        toValue: 1,
+        duration: 600,
+        delay: index * 150, // Staggered animation
+        useNativeDriver: true,
+      })
+    );
+    
+    Animated.stagger(100, animations).start();
+  };
+
+  const animateProgressBar = (progress: number) => {
+    Animated.timing(progressBarAnimation, {
+      toValue: progress / 100,
+      duration: 800,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animateSlicePress = (index: number, pressed: boolean) => {
+    if (pressAnimations[index]) {
+      Animated.spring(pressAnimations[index], {
+        toValue: pressed ? 0.95 : 1,
+        useNativeDriver: true,
+        tension: 300,
+        friction: 10,
+      }).start();
+    }
+  };
+
+  const animateSliceCompletion = (index: number) => {
+    if (sliceAnimations[index]) {
+      // Bounce animation for completion
+      Animated.sequence([
+        Animated.timing(sliceAnimations[index], {
+          toValue: 1.1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sliceAnimations[index], {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  };
+
+  // Progress view animation functions
+  const animateProgressViewEntrance = () => {
+    // Ensure all animations start from 0 (hidden state)
+    progressHeaderAnimation.setValue(0);
+    stepsAnimation.setValue(0);
+    criteriaAnimation.setValue(0);
+    resourcesAnimation.setValue(0);
+    completeButtonAnimation.setValue(0);
+
+    // Small delay to ensure component is fully mounted
+    setTimeout(() => {
+      // Staggered entrance animations
+      Animated.stagger(150, [
+        Animated.timing(progressHeaderAnimation, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(stepsAnimation, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(criteriaAnimation, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(resourcesAnimation, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(completeButtonAnimation, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 50); // Very small delay to ensure smooth mounting
+  };
+
+  const animateStepItems = (stepIndex: number) => {
+    return Animated.timing(new Animated.Value(0), {
+      toValue: 1,
+      duration: 400,
+      delay: stepIndex * 100,
+      useNativeDriver: true,
+    });
+  };
 
   // Loading state
   if (isLoading) {
@@ -436,7 +606,23 @@ export default function ProjectExecutionScreen() {
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom:80}}>
           {/* Progress Header */}
-          <View style={styles.progressHeader}>
+          <Animated.View 
+            style={[
+              styles.progressHeader,
+              {
+                opacity: progressHeaderAnimation,
+                transform: [
+                  {
+                    translateY: progressHeaderAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0],
+                      extrapolate: 'clamp',
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <View style={styles.progressInfo}>
               <Text style={styles.progressTitle}>{currentSlice.title}</Text>
               <Text style={styles.progressDescription}>{currentSlice.description}</Text>
@@ -451,59 +637,214 @@ export default function ProjectExecutionScreen() {
                 </View>
               </View>
             </View>
-          </View>
+          </Animated.View>
 
           {/* Steps */}
-          <View style={styles.stepsSection}>
+          <Animated.View 
+            style={[
+              styles.stepsSection,
+              {
+                opacity: stepsAnimation,
+                transform: [
+                  {
+                    translateY: stepsAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0],
+                      extrapolate: 'clamp',
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <Text style={styles.sectionTitle}>Steps to Complete</Text>
             {currentSlice.steps.map((step, stepIndex) => (
-              <View key={stepIndex} style={styles.stepItem}>
+              <Animated.View 
+                key={stepIndex} 
+                style={[
+                  styles.stepItem,
+                  {
+                    opacity: stepsAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                      extrapolate: 'clamp',
+                    }),
+                    transform: [
+                      {
+                        translateX: stepsAnimation.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-20, 0],
+                          extrapolate: 'clamp',
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
                 <View style={styles.stepNumber}>
                   <Text style={styles.stepNumberText}>{stepIndex + 1}</Text>
                 </View>
                 <Text style={styles.stepText}>{step}</Text>
-              </View>
+              </Animated.View>
             ))}
-          </View>
+          </Animated.View>
 
           {/* Success Criteria */}
-          <View style={styles.criteriaSection}>
+          <Animated.View 
+            style={[
+              styles.criteriaSection,
+              {
+                opacity: criteriaAnimation,
+                transform: [
+                  {
+                    translateY: criteriaAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0],
+                      extrapolate: 'clamp',
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <Text style={styles.sectionTitle}>Success Criteria</Text>
             {currentSlice.successCriteria.map((criteria, criteriaIndex) => (
-              <View key={criteriaIndex} style={styles.criteriaItem}>
+              <Animated.View 
+                key={criteriaIndex} 
+                style={[
+                  styles.criteriaItem,
+                  {
+                    opacity: criteriaAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                      extrapolate: 'clamp',
+                    }),
+                    transform: [
+                      {
+                        translateX: criteriaAnimation.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-20, 0],
+                          extrapolate: 'clamp',
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
                 <IconSymbol name="checkmark.circle.fill" size={16} color="#58CC02" />
                 <Text style={styles.criteriaText}>{criteria}</Text>
-              </View>
+              </Animated.View>
             ))}
-          </View>
+          </Animated.View>
 
           {/* Materials & Tools */}
-          <View style={styles.resourcesSection}>
+          <Animated.View 
+            style={[
+              styles.resourcesSection,
+              {
+                opacity: resourcesAnimation,
+                transform: [
+                  {
+                    translateY: resourcesAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0],
+                      extrapolate: 'clamp',
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <View style={styles.materialsSection}>
               <Text style={styles.sectionTitle}>Materials Needed</Text>
-              {currentSlice.materials.map((material, index) => (
-                <View key={index} style={styles.resourceItem}>
+              {(currentSlice.materials && currentSlice.materials.length > 0 ? currentSlice.materials : project.materials).map((material, index) => (
+                <Animated.View 
+                  key={index} 
+                  style={[
+                    styles.resourceItem,
+                    {
+                      opacity: resourcesAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, 1],
+                        extrapolate: 'clamp',
+                      }),
+                      transform: [
+                        {
+                          translateX: resourcesAnimation.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [-20, 0],
+                            extrapolate: 'clamp',
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
                   <View style={styles.resourceBullet} />
                   <Text style={styles.resourceText}>{material}</Text>
-                </View>
+                </Animated.View>
               ))}
             </View>
             
             <View style={styles.toolsSection}>
               <Text style={styles.sectionTitle}>Tools Required</Text>
-              {currentSlice.tools.map((tool, index) => (
-                <View key={index} style={styles.resourceItem}>
+              {(currentSlice.tools && currentSlice.tools.length > 0 ? currentSlice.tools : project.tools).map((tool, index) => (
+                <Animated.View 
+                  key={index} 
+                  style={[
+                    styles.resourceItem,
+                    {
+                      opacity: resourcesAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, 1],
+                        extrapolate: 'clamp',
+                      }),
+                      transform: [
+                        {
+                          translateX: resourcesAnimation.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [-20, 0],
+                            extrapolate: 'clamp',
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
                   <View style={styles.toolIcon}>
                     <IconSymbol name="hammer.fill" size={12} color="#1CB0F6" />
                   </View>
                   <Text style={styles.resourceText}>{tool}</Text>
-                </View>
+                </Animated.View>
               ))}
             </View>
-          </View>
+          </Animated.View>
 
           {/* Complete Button */}
-          <View style={styles.completeSection}>
+          <Animated.View 
+            style={[
+              styles.completeSection,
+              {
+                opacity: completeButtonAnimation,
+                transform: [
+                  {
+                    translateY: completeButtonAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0],
+                      extrapolate: 'clamp',
+                    }),
+                  },
+                  {
+                    scale: completeButtonAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.9, 1],
+                      extrapolate: 'clamp',
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <TouchableOpacity 
               style={styles.completeButton}
               onPress={() => handleCompleteSlice(currentSlice.id)}
@@ -518,7 +859,7 @@ export default function ProjectExecutionScreen() {
                 <Text style={styles.completeButtonText}>Mark as Complete</Text>
               </LinearGradient>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </ScrollView>
       </View>
     );
@@ -562,10 +903,16 @@ export default function ProjectExecutionScreen() {
             {/* Progress Bar */}
             <View style={styles.progressContainer}>
               <View style={styles.progressBar}>
-                <View 
+                <Animated.View 
                   style={[
                     styles.progressFill, 
-                    { width: `${getProgressPercentage()}%` }
+                    { 
+                      width: progressBarAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                        extrapolate: 'clamp',
+                      })
+                    }
                   ]} 
                 />
               </View>
@@ -586,15 +933,97 @@ export default function ProjectExecutionScreen() {
 
         {/* Slices */}
         <View style={styles.slicesContainer}>
-          {slices.map((slice, index) => (
-            <TouchableOpacity
-              key={slice.id}
-              style={[
-                styles.sliceCard,
-                slice.isCompleted && styles.completedSliceCard
-              ]}
-              onPress={() => handleSlicePress(index)}
-            >
+          {slices.map((slice, index) => {
+            // Safety check to ensure animations exist
+            if (!sliceAnimations[index] || !pressAnimations[index]) {
+              return (
+                <TouchableOpacity
+                  key={slice.id}
+                  style={[
+                    styles.sliceCard,
+                    slice.isCompleted && styles.completedSliceCard
+                  ]}
+                  onPress={() => handleSlicePress(index)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.sliceHeader}>
+                    <View style={[
+                      styles.sliceNumber,
+                      slice.isCompleted && styles.completedSliceNumber
+                    ]}>
+                      {slice.isCompleted ? (
+                        <IconSymbol name="checkmark" size={20} color="white" />
+                      ) : (
+                        <Text style={styles.sliceNumberText}>{slice.order}</Text>
+                      )}
+                    </View>
+                    <View style={styles.sliceInfo}>
+                      <Text style={[
+                        styles.sliceTitle,
+                        slice.isCompleted && styles.completedSliceTitle
+                      ]}>
+                        {slice.title}
+                      </Text>
+                      <Text style={styles.sliceDescription}>{slice.description}</Text>
+                      <View style={styles.sliceMeta}>
+                        <View style={[styles.typeBadge, { backgroundColor: getTypeColor(slice.type) }]}>
+                          <IconSymbol name={getTypeIcon(slice.type)} size={12} color="white" />
+                          <Text style={styles.typeText}>{slice.type}</Text>
+                        </View>
+                        <View style={styles.durationBadge}>
+                          <IconSymbol name="clock" size={12} color="#666" />
+                          <Text style={styles.durationText}>{slice.duration} min</Text>
+                        </View>
+                        {slice.isCompleted && (
+                          <View style={styles.completedBadge}>
+                            <IconSymbol name="checkmark.circle.fill" size={12} color="#58CC02" />
+                            <Text style={styles.completedText}>Complete</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            }
+
+            const translateY = sliceAnimations[index].interpolate({
+              inputRange: [0, 1],
+              outputRange: [50, 0],
+              extrapolate: 'clamp',
+            });
+            
+            const opacity = sliceAnimations[index].interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 1],
+              extrapolate: 'clamp',
+            });
+            
+            const scale = pressAnimations[index];
+            
+            return (
+              <Animated.View
+                key={slice.id}
+                style={[
+                  {
+                    transform: [
+                      { translateY },
+                      { scale },
+                    ],
+                    opacity,
+                  }
+                ]}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.sliceCard,
+                    slice.isCompleted && styles.completedSliceCard
+                  ]}
+                  onPress={() => handleSlicePress(index)}
+                  onPressIn={() => animateSlicePress(index, true)}
+                  onPressOut={() => animateSlicePress(index, false)}
+                  activeOpacity={0.8}
+                >
               <View style={styles.sliceHeader}>
                 <View style={[
                   styles.sliceNumber,
@@ -632,8 +1061,10 @@ export default function ProjectExecutionScreen() {
                   </View>
                 </View>
               </View>
-            </TouchableOpacity>
-          ))}
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })}
         </View>
 
         {/* Navigation */}
@@ -1073,5 +1504,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: FontFamilies.featherBold,
     color: '#FFFFFF',
+  },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#999999',
+    fontStyle: 'italic',
+    marginTop: 8,
   },
 });

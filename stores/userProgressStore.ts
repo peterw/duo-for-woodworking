@@ -1012,11 +1012,16 @@ export const useUserProgressStore = create<UserProgressStore>()(
       fetchProjects: async () => {
         try {
           set({ isLoading: true });
-          const projects = await getProjects();
+          const firestoreProjects = await getProjects();
+          
+          // Use Firestore projects if available, otherwise fall back to sample projects
+          const projects = firestoreProjects.length > 0 ? firestoreProjects : woodworkingProjects;
+          
           set({ projects, isLoading: false });
         } catch (error) {
           console.error('Error fetching projects:', error);
-          set({ isLoading: false });
+          // Fall back to sample projects on error
+          set({ projects: woodworkingProjects, isLoading: false });
         }
       },
       
@@ -1034,15 +1039,25 @@ export const useUserProgressStore = create<UserProgressStore>()(
       fetchAllData: async () => {
         try {
           set({ isLoading: true });
-          const [skills, projects, categories] = await Promise.all([
+          const [skills, firestoreProjects, categories] = await Promise.all([
             getSkills(),
             getProjects(),
             getCategories()
           ]);
+          
+          // Use Firestore projects if available, otherwise fall back to sample projects
+          const projects = firestoreProjects.length > 0 ? firestoreProjects : woodworkingProjects;
+          
           set({ skills, projects, categories, isLoading: false });
         } catch (error) {
           console.error('Error fetching all data:', error);
-          set({ isLoading: false });
+          // Fall back to sample data on error
+          set({ 
+            skills: woodworkingSkills, 
+            projects: woodworkingProjects, 
+            categories: [], 
+            isLoading: false 
+          });
         }
       },
       

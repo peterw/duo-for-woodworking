@@ -80,5 +80,9 @@
     <string>Automatic</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
+    <key>NSCameraUsageDescription</key>
+    <string>The app accesses your camera to let you take a profile picture.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>The app accesses your photos to let you select a profile picture.</string>
   </dict>
 </plist>

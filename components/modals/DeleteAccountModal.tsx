@@ -2,13 +2,12 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useAuthStore } from '@/stores/authStore';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Modal,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -16,64 +15,78 @@ import {
 interface DeleteAccountModalProps {
   visible: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
 }
 
 export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   visible,
   onClose,
-  onSuccess,
 }) => {
-  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [shouldNavigate, setShouldNavigate] = useState(false);
-  const { deleteAccount, firebaseUser } = useAuthStore();
+  const {  deleteAppleAccount, firebaseUser } = useAuthStore();
 
-  // Handle navigation after modal closes
-  useEffect(() => {
-    if (shouldNavigate && !visible) {
-      setShouldNavigate(false);
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        // For Apple Sign-In case, navigate to welcome screen
-        router.replace('/welcome');
-      }
-    }
-  }, [shouldNavigate, visible, onSuccess]);
-
-  const handleDeleteAccount = async () => {
-    if (!password.trim()) {
-      Alert.alert('Error', 'Please enter your password to confirm account deletion.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const success = await deleteAccount(password);
-      if (success) {
-        if (onSuccess) {
-          // Set flag to navigate after modal closes
-          setShouldNavigate(true);
-          onClose();
-        } else {
-          // Close modal and show alert
-          onClose();
-          setTimeout(() => {
-            Alert.alert(
-              'Account Deleted',
-              'Your account has been successfully deleted.',
-              [{ text: 'OK' }]
-            );
-          }, 500);
-        }
-      }
-    } catch (error) {
-      console.error('Delete account error:', error);
-      Alert.alert('Error', 'Failed to delete account. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+  const handleDeleteAppleAccount = async () => {
+    // Show confirmation dialog first
+    Alert.alert(
+      'Confirm Account Deletion',
+      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete Account', 
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoading(true);
+            try {
+                            const success = await deleteAppleAccount();
+              if (success) {
+                // Close modal first
+                onClose();
+                
+                // Show success message and navigate to welcome screen
+                setTimeout(() => {
+                  Alert.alert(
+                    'Account Deleted',
+                    'Your account has been successfully deleted.',
+                    [{ 
+                      text: 'OK',
+                      onPress: () => {
+                        router.replace('/welcome');
+                      }
+                    }]
+                  );
+                }, 500);
+              } else {
+                // Handle specific error cases from the auth store
+                Alert.alert(
+                  'Deletion Failed',
+                  'Unable to delete your account. Please try again or contact support if the issue persists.',
+                  [{ text: 'OK' }]
+                );
+              }
+            } catch (error: any) {
+              console.error('Delete Apple account error:', error);
+              
+              let errorMessage = 'Failed to delete account. Please try again.';
+              
+              // Handle specific error cases
+              if (error.message?.includes('Apple Sign In is not available')) {
+                errorMessage = 'Apple Sign In is not available on this device. Please try again later.';
+              } else if (error.message?.includes('re-authentication failed')) {
+                errorMessage = 'Authentication failed. Please try again.';
+              } else if (error.message?.includes('network')) {
+                errorMessage = 'Network error. Please check your connection and try again.';
+              } else if (error.message?.includes('User document does not exist')) {
+                errorMessage = 'User data not found. Please contact support.';
+              }
+              
+              Alert.alert('Error', errorMessage);
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        },
+      ]
+    );
   };
 
   const isAppleUser = firebaseUser?.providerData[0]?.providerId === 'apple.com';
@@ -90,25 +103,23 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
           <View style={styles.modal}>
             <ThemedText style={styles.title}>Delete Account</ThemedText>
             <ThemedText style={styles.message}>
-              For Apple Sign-In users, you'll need to sign out and sign in again before deleting your account.
+              This action cannot be undone. All your data will be permanently deleted.
+              You'll need to re-authenticate with Apple to confirm account deletion.
             </ThemedText>
             <View style={styles.buttonContainer}>
               <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
                 <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={styles.deleteButton} 
-                onPress={async () => {
-                  // Sign out the user so they can sign in again
-                  const success = await useAuthStore.getState().logout();
-                  if (success) {
-                    // Set flag to navigate after modal closes
-                    setShouldNavigate(true);
-                    onClose();
-                  }
-                }}
+                style={[styles.deleteButton, isLoading && styles.disabledButton]} 
+                onPress={handleDeleteAppleAccount}
+                disabled={isLoading}
               >
-                <ThemedText style={styles.deleteButtonText}>Delete</ThemedText>
+                {isLoading ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <ThemedText style={styles.deleteButtonText}>Delete</ThemedText>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -116,53 +127,6 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
       </Modal>
     );
   }
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <ThemedText style={styles.title}>Delete Account</ThemedText>
-          <ThemedText style={styles.message}>
-            This action cannot be undone. All your data will be permanently deleted.
-            Please enter your password to confirm.
-          </ThemedText>
-          
-          <TextInput
-            style={styles.passwordInput}
-            placeholder="Enter your password"
-            placeholderTextColor={Colors.light.text}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.deleteButton, isLoading && styles.disabledButton]} 
-              onPress={handleDeleteAccount}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <ThemedText style={styles.deleteButtonText}>Delete Account</ThemedText>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
 };
 
 const styles = StyleSheet.create({

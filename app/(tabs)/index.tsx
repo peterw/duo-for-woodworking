@@ -80,6 +80,11 @@ export default function HomeScreen() {
     }).length;
   };
 
+  // Calculate total projects (completed + in progress)
+  const getTotalProjects = () => {
+    return projects.length;
+  };
+
   useEffect(() => {
     checkDailyLogin();
     updateGreeting();
@@ -306,7 +311,7 @@ export default function HomeScreen() {
         <StatsCards
           level={level}
           totalXP={totalXP}
-          totalProjects={totalProjects}
+          totalProjects={getTotalProjects()}
           onLevelPress={() => setShowLevelModal(true)}
           onXPPress={() => setShowXPModal(true)}
           onProjectsPress={() => setShowProjectsModal(true)}
@@ -330,26 +335,6 @@ export default function HomeScreen() {
           onCompleteGoal={completeDailyGoal}
         />
         
-        {/* Projects Summary */}
-        <View style={styles.projectsSummary}>
-          <Text style={styles.projectsSummaryTitle}>Your Projects</Text>
-          <View style={styles.projectsSummaryStats}>
-            <View style={styles.projectsSummaryItem}>
-              <Text style={styles.projectsSummaryNumber}>{projects.length}</Text>
-              <Text style={styles.projectsSummaryLabel}>Total</Text>
-            </View>
-            <View style={styles.projectsSummaryItem}>
-              <Text style={styles.projectsSummaryNumber}>{getTotalCompletedProjects()}</Text>
-              <Text style={styles.projectsSummaryLabel}>Completed</Text>
-            </View>
-            <View style={styles.projectsSummaryItem}>
-              <Text style={styles.projectsSummaryNumber}>
-                {projects.length > 0 ? Math.round((getTotalCompletedProjects() / projects.length) * 100) : 0}%
-              </Text>
-              <Text style={styles.projectsSummaryLabel}>Success Rate</Text>
-            </View>
-          </View>
-        </View>
         
         <AICoach />
       </ScrollView>
@@ -366,21 +351,21 @@ export default function HomeScreen() {
         totalXP={totalXP}
         skillsCompleted={skillsCompleted}
         currentStreak={currentStreak}
-        totalProjects={totalProjects}
+        totalProjects={getTotalProjects()}
       />
       <XPModal
         visible={showXPModal}
         onClose={() => setShowXPModal(false)}
         totalXP={totalXP}
         skillsCompleted={skillsCompleted}
-        totalProjects={totalProjects}
+        totalProjects={getTotalProjects()}
         currentStreak={currentStreak}
         dailyGoals={dailyGoals}
       />
       <ProjectsModal
         visible={showProjectsModal}
         onClose={() => setShowProjectsModal(false)}
-        totalProjects={totalProjects}
+        totalProjects={getTotalProjects()}
         recentProjects={recentProjects}
         availableProjects={projects.length}
       />

@@ -1,5 +1,6 @@
 import { DeleteAccountModal } from '@/components/modals';
 import { Button } from '@/components/ui/Button';
+import { Header } from '@/components/ui/Header';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -13,6 +14,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -193,24 +195,24 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Professional Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <Text style={styles.headerSubtitle}>Your woodworking journey</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity 
-            style={styles.settingsButton}
-            onPress={() => {
-              hapticSelection();
-              router.push('/settings');
-            }}
-            activeOpacity={0.7}
-          >
-            <IconSymbol name="gearshape.fill" size={24} color="#000000" />
-          </TouchableOpacity>
-        </View>
+      <Header 
+        title="Profile" 
+        subtitle="Your woodworking journey"
+        showSafeArea={false}
+      />
+      
+      {/* Settings Button */}
+      <View style={styles.settingsButtonContainer}>
+        <TouchableOpacity 
+          style={styles.settingsButton}
+          onPress={() => {
+            hapticSelection();
+            router.push('/settings');
+          }}
+          activeOpacity={0.7}
+        >
+          <IconSymbol name="gearshape.fill" size={24} color="#000000" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -223,9 +225,17 @@ export default function ProfileScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Text style={styles.profileInitial}>
-                {user.fullName.charAt(0).toUpperCase()}
-              </Text>
+              {user.profileImageUrl ? (
+                <Image 
+                  source={{ uri: user.profileImageUrl }} 
+                  style={styles.profileImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={styles.profileInitial}>
+                  {user.fullName.charAt(0).toUpperCase()}
+                </Text>
+              )}
             </LinearGradient>
             <View style={styles.levelBadge}>
               <Text style={styles.levelText}>{level}</Text>
@@ -414,29 +424,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontFamily: FontFamilies.featherBold,
-    color: '#000000',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    fontFamily: FontFamilies.dinRounded,
-    color: '#666666',
-  },
-  headerRight: {
-    alignItems: 'flex-end',
+  settingsButtonContainer: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 1000,
   },
   settingsButton: {
     width: 40,
@@ -481,6 +473,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
   },
   profileInitial: {
     fontSize: 36,
