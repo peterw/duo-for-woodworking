@@ -275,8 +275,8 @@ export default function CoachScreen() {
         left: {
           backgroundColor: '#FF6B35',
           borderRadius: 24,
-          paddingHorizontal: 16,
-          paddingVertical: 12,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
           marginBottom: 16,
           maxWidth: screenWidth * 0.75,
           shadowColor: '#000',
@@ -290,8 +290,8 @@ export default function CoachScreen() {
         right: {
           backgroundColor: '#58CC02',
           borderRadius: 24,
-          paddingHorizontal: 16,
-          paddingVertical: 12,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
           marginBottom: 16,
           marginRight: 8,
           maxWidth: screenWidth * 0.75,
@@ -322,13 +322,13 @@ export default function CoachScreen() {
       }}
       timeTextStyle={{
         left: {
-          color: '#E0E0E0',
+          color: '#FFFFFF',
           fontSize: 12,
           fontFamily: FontFamilies.dinRounded,
           fontWeight: '400',
         },
         right: {
-          color: '#81C784',
+          color: '#FFFFFF',
           fontSize: 12,
           fontFamily: FontFamilies.dinRounded,
           fontWeight: '400',

@@ -1,35 +1,100 @@
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
-import React from 'react';
+import { Skill, skillService } from '@/services/skillService';
+import { useAuthStore } from '@/stores/authStore';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
 
-interface Skill {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  color: string;
-  isLocked: boolean;
-  isCompleted: boolean;
-  progress: number;
-  xpReward: number;
-  lessons: number;
-  crowns: number;
-  level: number;
-}
-
 interface SkillTreeProps {
   skills: Skill[];
   onSkillPress: (skill: Skill) => void;
   onViewAllSkills: () => void;
+  onRefresh?: () => void;
 }
 
-export default function SkillTree({ skills, onSkillPress, onViewAllSkills }: SkillTreeProps) {
+export default function SkillTree({ skills, onSkillPress, onViewAllSkills, onRefresh }: SkillTreeProps) {
+  const { firebaseUser } = useAuthStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [dynamicSkills, setDynamicSkills] = useState<Skill[]>(skills);
+
+  useEffect(() => {
+    if (firebaseUser?.uid) {
+      loadSkillsWithProgress();
+    } else {
+      setDynamicSkills(skills);
+    }
+  }, [firebaseUser?.uid, skills]);
+
+  const loadSkillsWithProgress = async () => {
+    if (!firebaseUser?.uid) return;
+    
+    setIsLoading(true);
+    try {
+      const skillsWithProgress = await skillService.getSkillsWithProgress(firebaseUser.uid);
+      setDynamicSkills(skillsWithProgress.slice(0, 6)); // Show first 6 skills
+    } catch (error) {
+      console.error('Error loading skills with progress:', error);
+      setDynamicSkills(skills); // Fallback to static skills
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSkillPress = async (skill: Skill) => {
+    if (!skill.isUnlocked) {
+      Alert.alert('Skill Locked', 'Complete previous skills to unlock this one!');
+      return;
+    }
+
+    if (!firebaseUser?.uid) {
+      Alert.alert('Authentication Required', 'Please log in to access skills.');
+      return;
+    }
+
+    try {
+      // Start the skill if not already started
+      await skillService.startSkill(skill.id, firebaseUser.uid);
+      
+      // Call the parent handler first
+      onSkillPress(skill);
+    } catch (error) {
+      console.error('Error starting skill:', error);
+      Alert.alert('Error', 'Failed to start skill. Please try again.');
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (onRefresh) {
+      onRefresh();
+    } else {
+      await loadSkillsWithProgress();
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.skillTreeContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Woodworking Path</Text>
+          <TouchableOpacity onPress={onViewAllSkills}>
+            <Text style={styles.viewAllButton}>View All</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#58CC02" />
+          <Text style={styles.loadingText}>Loading your progress...</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.skillTreeContainer}>
       <View style={styles.sectionHeader}>
@@ -43,19 +108,18 @@ export default function SkillTree({ skills, onSkillPress, onViewAllSkills }: Ski
       
       {/* Duolingo-style skill tree */}
       <View style={styles.skillTree}>
-        {skills.map((skill, index) => (
-          <View key={skill.id} style={styles.skillRow}>
+        {dynamicSkills.map((skill, index) => (
+          <TouchableOpacity key={skill.id} style={styles.skillRow} onPress={() => handleSkillPress(skill)} disabled={!skill.isUnlocked}>
             {/* Skill Circle */}
             <TouchableOpacity
               style={[
                 styles.skillCircle,
                 { backgroundColor: skill.color },
-                skill.isLocked && styles.skillCircleLocked
+                !skill.isUnlocked && styles.skillCircleLocked
               ]}
-              onPress={() => onSkillPress(skill)}
-              disabled={skill.isLocked}
+             
             >
-              {skill.isLocked ? (
+              {!skill.isUnlocked ? (
                 <View style={styles.lockedIconContainer}>
                   <IconSymbol name="lock.fill" size={20} color="#999999" />
                 </View>
@@ -70,16 +134,16 @@ export default function SkillTree({ skills, onSkillPress, onViewAllSkills }: Ski
             <View style={styles.skillInfo}>
               <Text style={[
                 styles.skillTitle,
-                skill.isLocked && styles.skillTitleLocked
+                !skill.isUnlocked && styles.skillTitleLocked
               ]}>
                 {skill.title}
               </Text>
               <Text style={[
                 styles.skillDescription,
-                skill.isLocked && styles.skillDescriptionLocked
+                !skill.isUnlocked && styles.skillDescriptionLocked
               ]}>
-                {skill.isLocked 
-                  ? `Complete "${skills[index - 1]?.title || 'previous skill'}" to unlock`
+                {!skill.isUnlocked 
+                  ? `Complete "${dynamicSkills[index - 1]?.title || 'previous skill'}" to unlock`
                   : skill.description
                 }
               </Text>
@@ -97,7 +161,7 @@ export default function SkillTree({ skills, onSkillPress, onViewAllSkills }: Ski
                     />
                   ))}
                 </View>
-                {!skill.isLocked && (
+                {skill.isUnlocked && (
                   <Text style={styles.lessonCount}>
                     {skill.lessons} {skill.lessons === 1 ? 'lesson' : 'lessons'}
                   </Text>
@@ -106,7 +170,7 @@ export default function SkillTree({ skills, onSkillPress, onViewAllSkills }: Ski
             </View>
             
             {/* Progress indicator */}
-            {!skill.isLocked && (
+            {skill.isUnlocked && (
               <View style={styles.skillProgress}>
                 <View style={styles.progressBarSmall}>
                   <View 
@@ -124,16 +188,16 @@ export default function SkillTree({ skills, onSkillPress, onViewAllSkills }: Ski
             )}
             
             {/* Connection line to next skill */}
-            {index < skills.length - 1 && (
+            {index < dynamicSkills.length - 1 && (
               <View style={[
                 styles.connectionLine,
                 { 
-                  backgroundColor: skills[index + 1].isLocked ? '#E5E5E5' : '#58CC02',
-                  opacity: skills[index + 1].isLocked ? 0.3 : 1
+                  backgroundColor: !dynamicSkills[index + 1].isUnlocked ? '#E5E5E5' : '#58CC02',
+                  opacity: !dynamicSkills[index + 1].isUnlocked ? 0.3 : 1
                 }
               ]} />
             )}
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
     </View>
@@ -272,5 +336,16 @@ const styles = StyleSheet.create({
     width: 2,
     height: 28,
     backgroundColor: '#58CC02',
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
   },
 });

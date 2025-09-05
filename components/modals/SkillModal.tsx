@@ -1,5 +1,6 @@
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
+import { Skill } from '@/services/skillService';
 import { router } from 'expo-router';
 import React from 'react';
 import {
@@ -11,29 +12,48 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-interface Skill {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  color: string;
-  isLocked: boolean;
-  isCompleted: boolean;
-  progress: number;
-  xpReward: number;
-  lessons: number;
-  crowns: number;
-  level: number;
-}
-
 interface SkillModalProps {
   visible: boolean;
   onClose: () => void;
   skill: Skill | null;
+  onRefresh?: () => void;
 }
 
-export default function SkillModal({ visible, onClose, skill }: SkillModalProps) {
+export default function SkillModal({ visible, onClose, skill, onRefresh }: SkillModalProps) {
   if (!skill) return null;
+
+  const handleStartLearning = () => {
+    onClose(); // Close the modal first
+    // Navigate to the lesson screen
+    router.push({
+      pathname: '/lesson-screen',
+      params: {
+        skillId: skill.id || '',
+        skillTitle: skill.title || '',
+        skillDescription: skill.description || '',
+        skillIcon: skill.icon || '',
+        skillColor: skill.color || '#58CC02',
+        skillLevel: (skill.level || 1).toString(),
+        skillXpReward: (skill.xpReward || 0).toString(),
+        skillCategory: skill.category || 'beginner',
+        skillPrerequisites: JSON.stringify(skill.prerequisites || []),
+        skillMicroSteps: JSON.stringify(skill.microSteps || []),
+        skillIsUnlocked: (skill.isUnlocked || false).toString(),
+        skillIsCompleted: (skill.isCompleted || false).toString(),
+        skillProgress: (skill.progress || 0).toString(),
+        skillCrowns: (skill.crowns || 0).toString(),
+        skillLessons: (skill.lessons || 0).toString()
+      }
+    });
+  };
+
+  const handleClose = () => {
+    onClose();
+    // Refresh data when modal closes
+    if (onRefresh) {
+      onRefresh();
+    }
+  };
 
   return (
     <Modal
@@ -44,7 +64,7 @@ export default function SkillModal({ visible, onClose, skill }: SkillModalProps)
     >
       <SafeAreaView style={styles.modalContainer}>
         <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <IconSymbol name="xmark" size={24} color="#000" />
           </TouchableOpacity>
           <Text style={styles.modalTitle}>Skill Details</Text>
@@ -72,25 +92,39 @@ export default function SkillModal({ visible, onClose, skill }: SkillModalProps)
               <Text style={styles.modalStatLabel}>Level</Text>
             </View>
           </View>
+
+          {skill.progress > 0 && (
+            <View style={styles.progressContainer}>
+              <Text style={styles.progressLabel}>Progress</Text>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${skill.progress}%` }]} />
+              </View>
+              <Text style={styles.progressText}>{skill.progress}%</Text>
+            </View>
+          )}
+
+          <View style={styles.crownsContainer}>
+            <Text style={styles.crownsLabel}>Crowns</Text>
+            <View style={styles.crownsRow}>
+              {[1, 2, 3, 4, 5].map((crown) => (
+                <IconSymbol
+                  key={crown}
+                  name={skill.crowns >= crown ? "crown.fill" : "crown"}
+                  size={20}
+                  color={skill.crowns >= crown ? "#FFD700" : "#E5E5E5"}
+                  style={styles.crownIcon}
+                />
+              ))}
+            </View>
+          </View>
           
           <TouchableOpacity
             style={[styles.startLearningButton, { backgroundColor: skill.color }]}
-            onPress={() => {
-              onClose();
-              // Navigate to lesson screen with skill data
-              router.push({
-                pathname: '/woodworking-project/lesson-screen',
-                params: {
-                  lessonId: skill.id,
-                  lessonTitle: skill.title,
-                  lessonColor: skill.color,
-                  lessonIcon: skill.icon,
-                  lessonType: 'lesson'
-                }
-              });
-            }}
+            onPress={handleStartLearning}
           >
-            <Text style={styles.startLearningButtonText}>Start Learning</Text>
+            <Text style={styles.startLearningButtonText}>
+              {skill.isCompleted ? 'Review Skill' : 'Start Learning'}
+            </Text>
             <IconSymbol name="arrow.right" size={20} color="white" />
           </TouchableOpacity>
         </View>
@@ -188,5 +222,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FontFamilies.featherBold,
     marginRight: 8,
+  },
+  progressContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  progressLabel: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: '#E5E5E5',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#58CC02',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  crownsContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  crownsLabel: {
+    fontSize: 14,
+    fontFamily: FontFamilies.dinRounded,
+    color: '#666666',
+    marginBottom: 8,
+  },
+  crownsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  crownIcon: {
+    marginHorizontal: 2,
   },
 });

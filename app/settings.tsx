@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores';
 import { hapticSelection } from '@/utils/haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import DeviceInfo from 'react-native-device-info';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SettingsScreen() {
@@ -30,6 +31,22 @@ export default function SettingsScreen() {
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [appVersion, setAppVersion] = useState('1.0.0');
+
+  // Fetch app version on component mount
+  useEffect(() => {
+    const getAppVersion = async () => {
+      try {
+        const version = await DeviceInfo.getVersion();
+        setAppVersion(version);
+      } catch (error) {
+        console.error('Error getting app version:', error);
+        // Keep default version if there's an error
+      }
+    };
+    
+    getAppVersion();
+  }, []);
 
   const handleLogout = () => {
     Alert.alert(
@@ -227,25 +244,6 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           {renderSectionHeader('Support', 'Get help and provide feedback')}
           
-          {renderSettingItem({
-            icon: '❓',
-            title: 'Help Center',
-            subtitle: 'Find answers to common questions',
-            onPress: () => {
-              hapticSelection();
-              // Navigate to help center
-            }
-          })}
-          
-          {renderSettingItem({
-            icon: '📧',
-            title: 'Contact Support',
-            subtitle: 'Get in touch with our team',
-            onPress: () => {
-              hapticSelection();
-              // Navigate to contact support
-            }
-          })}
           
           {renderSettingItem({
             icon: '⭐',
@@ -254,16 +252,6 @@ export default function SettingsScreen() {
             onPress: () => {
               hapticSelection();
               // Navigate to app store rating
-            }
-          })}
-          
-          {renderSettingItem({
-            icon: '📝',
-            title: 'Send Feedback',
-            subtitle: 'Help us improve the app',
-            onPress: () => {
-              hapticSelection();
-              // Navigate to feedback form
             }
           })}
         </View>
@@ -275,7 +263,7 @@ export default function SettingsScreen() {
           {renderSettingItem({
             icon: 'ℹ️',
             title: 'App Version',
-            subtitle: '1.0.0',
+            subtitle: appVersion,
             onPress: undefined
           })}
           

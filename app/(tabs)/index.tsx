@@ -4,7 +4,9 @@ import { LevelModal, ProjectsModal, SkillModal, XPModal } from '@/components/mod
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FontFamilies } from '@/hooks/AppFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { Skill, skillService } from '@/services/skillService';
 import { useUserProgressStore } from '@/stores';
+import { useAuthStore } from '@/stores/authStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -39,6 +41,7 @@ interface HomeSkill {
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
+  const { firebaseUser } = useAuthStore();
   const { 
     currentStreak, 
     totalXP, 
@@ -56,14 +59,14 @@ export default function HomeScreen() {
     fetchAllData
   } = useUserProgressStore();
 
-  const [selectedSkill, setSelectedSkill] = useState<HomeSkill | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [showSkillModal, setShowSkillModal] = useState(false);
   const [recentProjects, setRecentProjects] = useState<any[]>([]);
   const [greeting, setGreeting] = useState('Good morning');
   const [showLevelModal, setShowLevelModal] = useState(false);
   const [showXPModal, setShowXPModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
-  const [homeSkills, setHomeSkills] = useState<HomeSkill[]>([]);
+  const [homeSkills, setHomeSkills] = useState<Skill[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   // Calculate total completed projects
@@ -92,20 +95,24 @@ export default function HomeScreen() {
   }, [checkDailyLogin, fetchAllData]);
 
   useEffect(() => {
-    if (skills.length > 0) {
+    if (firebaseUser?.uid) {
+      loadDynamicSkills();
+    } else if (skills.length > 0) {
       initializeSkills();
-      loadRecentProjects();
     }
-  }, [skills, projects]);
+    loadRecentProjects();
+  }, [firebaseUser?.uid]); // Remove skills and projects from dependencies to prevent conflicts
 
   // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      if (skills.length > 0) {
+      if (firebaseUser?.uid) {
+        loadDynamicSkills();
+      } else if (skills.length > 0) {
         initializeSkills();
-        loadRecentProjects();
       }
-    }, [skills, projects])
+      loadRecentProjects();
+    }, [firebaseUser?.uid]) // Remove skills and projects from dependencies to prevent conflicts
   );
 
   const updateGreeting = () => {
@@ -115,19 +122,33 @@ export default function HomeScreen() {
     else setGreeting('Good evening');
   };
 
+  const loadDynamicSkills = async () => {
+    if (!firebaseUser?.uid) return;
+    
+    try {
+      const dynamicSkills = await skillService.getSkillsWithProgress(firebaseUser.uid);
+      setHomeSkills(dynamicSkills.slice(0, 6)); // Show first 6 skills
+    } catch (error) {
+      console.error('Error loading dynamic skills:', error);
+      // Fallback to static skills
+      initializeSkills();
+    }
+  };
+
   const initializeSkills = () => {
-    // Map Firestore skills to home screen format
+    // Map store skills to service Skill format
     if (skills.length === 0) return;
     
-    const mappedSkills: HomeSkill[] = skills.slice(0, 6).map((skill, index) => {
+    const mappedSkills: Skill[] = skills.slice(0, 6).map((skill, index) => {
       const isCompleted = completedSkills.includes(skill.id);
       const isLocked = index > 0 && !completedSkills.includes(skills[index - 1].id);
       
       // Calculate real progress based on completed microSteps
       let progress = 0;
       if (skill.microSteps && skill.microSteps.length > 0) {
-        const completedSteps = skill.microSteps.filter((step: any) => step.isCompleted);
-        progress = Math.round((completedSteps.length / skill.microSteps.length) * 100);
+        // For store skills, microSteps are strings, so we can't check completion
+        // Just use the isCompleted flag for now
+        progress = isCompleted ? 100 : 0;
       } else if (isCompleted) {
         progress = 100;
       }
@@ -138,13 +159,19 @@ export default function HomeScreen() {
         description: skill.description,
         icon: skill.icon,
         color: getSkillColor(index),
-        isLocked,
+        level: skill.level || 1,
+        order: index,
+        xpReward: skill.xpReward || 0,
+        prerequisites: skill.prerequisites || [],
+        microSteps: [], // Store skills have string[] microSteps, convert to empty MicroStep[]
+        category: skill.category || 'techniques',
+        isUnlocked: !isLocked,
         isCompleted,
         progress,
-        xpReward: skill.xpReward,
         lessons: skill.microSteps?.length || 0,
         crowns: isCompleted ? Math.floor(Math.random() * 3) + 1 : 0,
-        level: Math.floor(Math.random() * 3) + 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
     });
     
@@ -183,8 +210,8 @@ export default function HomeScreen() {
     return colors[index % colors.length];
   };
 
-  const handleSkillPress = (skill: HomeSkill) => {
-    if (skill.isLocked) {
+  const handleSkillPress = (skill: Skill) => {
+    if (!skill.isUnlocked) {
       Alert.alert('Skill Locked', 'Complete previous skills to unlock this one!');
       return;
     }
@@ -193,9 +220,21 @@ export default function HomeScreen() {
     setShowSkillModal(true);
   };
 
+  const handleSkillModalClose = async () => {
+    setShowSkillModal(false);
+    setSelectedSkill(null);
+    
+    // Refresh skill data when modal closes to ensure progress is up to date
+    if (firebaseUser?.uid) {
+      await loadDynamicSkills();
+    } else if (skills.length > 0) {
+      initializeSkills();
+    }
+  };
+
   const handleContinueLearning = () => {
     // Find the next skill to learn
-    const nextSkill = homeSkills.find(skill => !skill.isLocked && !skill.isCompleted);
+    const nextSkill = homeSkills.find(skill => skill.isUnlocked && !skill.isCompleted);
     if (nextSkill) {
       setSelectedSkill(nextSkill);
       setShowSkillModal(true);
@@ -220,10 +259,12 @@ export default function HomeScreen() {
     setRefreshing(true);
     try {
       await fetchAllData();
-      if (skills.length > 0) {
+      if (firebaseUser?.uid) {
+        await loadDynamicSkills();
+      } else if (skills.length > 0) {
         initializeSkills();
-        loadRecentProjects();
       }
+      loadRecentProjects();
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -260,7 +301,7 @@ export default function HomeScreen() {
 
   const renderContinueButton = () => {
     // Find the next skill to learn
-    const nextSkill = homeSkills.find(skill => !skill.isLocked && !skill.isCompleted);
+    const nextSkill = homeSkills.find(skill => skill.isUnlocked && !skill.isCompleted);
     const buttonText = nextSkill 
       ? `Continue ${nextSkill.title}` 
       : 'View All Skills';
@@ -321,7 +362,9 @@ export default function HomeScreen() {
           skills={homeSkills}
           onSkillPress={handleSkillPress}
           onViewAllSkills={handleViewAllSkills}
+          onRefresh={handleRefresh}
         />
+        
         
         {renderContinueButton()}
         
@@ -341,8 +384,9 @@ export default function HomeScreen() {
 
       <SkillModal
         visible={showSkillModal}
-        onClose={() => setShowSkillModal(false)}
+        onClose={handleSkillModalClose}
         skill={selectedSkill}
+        onRefresh={handleRefresh}
       />
       <LevelModal
         visible={showLevelModal}
