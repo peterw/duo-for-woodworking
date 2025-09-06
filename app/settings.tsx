@@ -273,7 +273,7 @@ export default function SettingsScreen() {
             subtitle: 'Read our terms and conditions',
             onPress: () => {
               hapticSelection();
-              // Navigate to terms
+              router.push('/terms-of-service');
             }
           })}
           
@@ -283,7 +283,7 @@ export default function SettingsScreen() {
             subtitle: 'Learn about data handling',
             onPress: () => {
               hapticSelection();
-              // Navigate to privacy policy
+              router.push('/privacy-policy');
             }
           })}
           
